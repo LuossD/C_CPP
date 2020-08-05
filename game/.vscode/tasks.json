@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "g++",
+			"command": "D:\\MinGW\\mingw64\\bin\\g++.exe",
+			"args": [
+				"-g",
+				"zyrandom.cpp",
+				"guess.cpp",
+				"${file}",
+				"-o",
+				"${fileBasenameNoExtension}.exe"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		}
+	]
+}
