@@ -2541,7 +2541,228 @@ void LlTraverse( PLIST list, MANIPULATE_OBJECT manipulate )
 //按照这样的程序设计，LlTranverse这个函数它的适用性显然要比之前那个方式要灵活得多，至少在LlTranverse函数内部没有对PtTransformIntoString函数的调用，这就意味着对LlTranverse来讲，它不需要知道PPOINT、点库的任何细节，管你是点库还是什么库，尤其是注意到，一旦形成一个抽象的链表库的话，那么我们的data字段它压根就不是PPOINT类型的，它是ADT类型的，完全把它抽象化了，你想用的时候把PPOINT转换成ADT，然后在内部再重新把ADT转换成PPOINT回去，它是按照这样的方式将链表库和点库完全给独立开来的。数据结构，他们互相不使用了，算法，它们互相之间也不使用了。这样不就独立了嘛，点库是点库，抽象链表库是链表库，这样我们的抽象链表库的应用场合也就不再局限于点库了。
 ```
 
+#### 回调函数参数使用
 
+```c++
+typedef void ( * MANIPULATE_OBJECT )( ADT e, ADT tag );
+/* 链表遍历函数 */
+void LlTraverse( PLIST list, MANIPULATE_OBJECT manipulate, ADT tag )
+{
+ PNODE t = list->head;
+ if( !list )
+ { 
+ cout << "LlTraverse: Parameter illegal." << endl;
+ exit(1);
+ }
+ while( t )
+ {
+ if( manipulate )
+ ( *manipulate )( t->data, tag ); 
+ t = t->next;
+ } }
+//第三个参数ADT tag，LlTraverse并没有使用而是传给manipulate使用
+```
+
+
+
+```c++
+/* 点数据到字符串的转换函数，最终程序员任意定义 */
+/* 参数 format 表示点数据对象的转换格式 */
+/* 其中只能包含两个格式码 %d，其他内容任意 */
+/* 例如格式“(%d,%d)”或“[%4d, %4d]”等 */
+char * PtTransformIntoString( const char * format, PPOINT point )
+{
+ char buf[BUFSIZ];
+ //定义一个buf，缓冲区
+ if( point )
+ {
+ sprintf( buf, format, point->x, point->y );
+ //按照它的那个format传进来的格式生成它对应的字符串
+ return DuplicateString( buf );
+ //然后返回这个字符串
+ }
+ else
+ return "NULL";
+}
+```
+
+```c++
+/* 回调函数 DoPrintObject */
+void DoPrintObject( ADT e, ADT tag )
+{
+ printf( PtTransformIntoString( (const char *)tag, (PPOINT)e ) );
+ //ADT转为相应的类型
+ printf( " -> " );
+}
+/* 回调函数参数的意义 */
+/* 调用遍历函数时将点数据的输出格式传递给遍历函数 */
+/* 再由遍历函数传递给回调 */
+LlTraverse( list, DoPrintObject, "(%d,%d)" );
+
+//第三个为回调函数参数
+//当你想“（%d，%d）”格式调用它的时候，那么你就按照这个格式(%d,%d)传一个字符串进去，这个就是它的第三个参数，附近参数。
+```
+
+---使用抽象的链表库存储我们抽象的点库，注意抽象的链表库是我写的，抽象的点库可能是张三写的，你呢，要使用我和张三写的那段程序代码来实现你的程序，那么当你想按照一个特定格式输出这些点信息的时候，我们就调用LlTraverse这个函数，传递抽象的链表，传递回调函数，传打印的格式。
+
+注意："(%d,%d)"不能写在DoPrintObject里面，写进去那只能做小括号对了，不能做中括号对了[%d,%d]、尖括号对等。
+
+所以可以看到：**用一个附近参数作为回调函数的主调函数和回调函数两者信息交互的一个关键点**。
+
+**回调函数参数的重要意义**
+
+程序的参与者：抽象链表的设计者、点库的设计者、最终使用前两者的第三方程序员。只有使用抽象链表库来存储点的那个程序员他才知道抽象链表库的接口是什么，点库的接口是什么，但是对应抽象链表库的实现是什么，点库的实现是什么，第三个程序员也一样不知道。他不需要知道，反正能用就行了对吧。抽象的目的就体现在这里，我让这些模块尽可能独立，你能用就行了，你压根就不需要知道它内部的实现细节。
+
+所以总结其优势：**三者完全不了解其他人的实现细节**
+
+**容器与容器中的对象**
+
+抽象链表作为一个容器和容器中的一个对象我就把它独立开了、分离开了。
+
+容器：能够容纳其他数据对象集合的东西
+
+**两者完全无关，即容器与容器中容纳的数据对象完全独立，**这个就叫抽象。
+
+**抽象链表事实上可以存储任意类型的数据对象**
+
+#### 数据对象的存储与删除
+
+在编写程序的时候需要特别注意的：
+
+第一，你链表中的那个data域是不是一个指针？
+
+第二，data域是否真正指向存在的目标数据对象？如果不指向怎么办？如果指向怎么办？是否需要指向一个真正存在的目标数据对象？这个目标数据对象是你动态分配的还是你静态分配的。这些都需要你在使用抽象链表库的时候明确的。
+
+第三，如果节点要被删除的话，data域所指向的一个目标数据对象是否需要被删除？链表这节点被删除了，data域所指向的目标数据对象是不是需要删除。就像我们前面讲的，如果我是把一个int直接转换成void * 存在data域里面的，那我这个节点被删除的时候目标数据对象不存在，所以不需要删除。那个data字段它真的指向目标数据对象，当我删除这个节点的时候，那个目标数据对象是不是一定需要删除，虽然在大部分情况下真需要删除，但是并不意味着每次总是这样，并不意味着一定需要删除，**这个地方一定需要注意，编程的时候要非常小心**。
+
+第四，如果需要删除，如何删除？
+
+第五，抽象链表的设计者能不能完成这样的删除任务？如果能，你就删就行了。如果你不能，你怎么办？这点你写程序的时候要时刻注意到。
+
+```c++
+typedef void ( * DESTROY_OBJECT )( ADT e );
+//销毁目标数据对象的一个函数指针类型，传递一个哑型指针ADT e，用来代表待销毁的那个目标数据对象的地址。
+void LlDelete( PLIST list, unsigned int pos, DESTROY_OBJECT destroy )
+//使用一个回调函数作为它的函数参数
+{
+ // ……
+ if( pos == 0 )
+ {
+ // ……
+ if( destroy )
+ ( *destroy )( t->data );
+ // ……
+ }
+ else if( pos < list->count )
+ {
+ // ……
+ if( destroy )
+ ( *destroy )( t->data );
+ // ……
+ } }
+//destroy如果你传的是一个非0值，不是NULL的一个值，那么我们就调用destroy所指向的那个目标销毁函数，销毁它的目标数据对象。如果传了一个NULL，我就不销毁，很明确吧。
+```
+
+```c++
+若需要删除目标数据对象，实现下述代码
+void DoDestroyObject( ADT e )
+{
+ delete (PPOINT)e;
+}
+/* 调用 DoDestroyObject 函数释放 data 域指向的存储空间 */
+LlDelete( list, 1, DoDestroyObject );
+
+若不需要删除目标数据对象，实现下述代码
+LlDelete( list, 1, NULL );
+```
+
+最后，我们的抽象链表库该怎么设计？
+
+设计不依赖所存储的具体数据类型的抽象链表
+
+```c
+typedef struct LIST * PLIST;
+typedef int ( * COMPARE_OBJECT )( CADT e1, CADT e2 );
+typedef void ( * DESTROY_OBJECT )( ADT e );
+typedef void ( * MANIPULATE_OBJECT )( ADT e, ADT tag );
+PLIST LlCreate();
+void LlDestroy( PLIST list, DESTROY_OBJECT destroy );
+void LlAppend( PLIST list, ADT object );
+void LlInsert( PLIST list, ADT object, unsigned int pos );
+void LlDelete( PLIST list, unsigned int pos, DESTROY_OBJECT destroy );
+void LlClear( PLIST list, DESTROY_OBJECT destroy );
+void LlTraverse( PLIST list, MANIPULATE_OBJECT manipulate, ADT tag );
+bool LlSearch( PLIST list, ADT object, COMPARE_OBJECT compare );
+unsigned int LlGetCount( PLIST list );
+bool LlIsEmpty( PLIST list );
+```
+
+作业1： **实现动态数组库**（学了操作符重载这个就更简单了）
+
+作业2：**实现抽象链表库**
+
+## 九.类与对象
+
+### 1.程序抽象与面向对象
+
+```c++
+抽象数据类型：设计能够存储二维平面上点的抽象数据类型
+/* 点库接口“point.h”*/
+struct POINT;
+typedef struct POINT * PPOINT;
+PPOINT PtCreate( int x, int y );
+void PtDestroy( PPOINT point );
+void PtGetValue( POINT point, int * x, int * y );
+void PtSetValue( PPOINT point, int x, int y );
+bool PtCompare( PPOINT point1, PPOINT point2 );
+char * PtTransformIntoString( PPOINT point );
+void PtPrint( PPOINT point );
+```
+
+前面设计的程序代码有个小问题，问题在哪里呢？问题就在你只能定义指向这个结构体的指针，你并不能够定义这个结构体类型的变量。因为我们这个结构体的类型是未知的，我们仅仅声明了它，并没有定义它。所以你是不可以使用POINT这个结构体来定义变量的，你只能定义PPOINT类型的变量，也就是指向这个结构体的指针。也就是说，像这样一个库的接口使用其实是受限的。
+
+ **类与对象的概念与意义**
+
+接上面，第二，虽然我们将这个结构体的声明和这个结构体所能够具有的方法也就是它的行为实际上封装在一个抽象的点库里面，属性和行为从我们实现角度来讲，似乎是统一的。但我们其实并没有办法要求程序员对所有的库的结构按照一个特定的方式这样组织和使用，比如，他有可能把那个结构体的定义抽取出来然后放到了头文件里，这样的话他不就可以用了嘛。
+
+我们按照这样一个实现完成了这样一个抽象库的表达，我们将它的属性也就是这个结构体所具有的数据的那些成员信息和在这些信息上边所能够进行的操作把它统一地封装在我们的源文件里，而在我们的接口上面只提供它的型的一个描述---一个简单的描述，而不是内部的实现细节，不是类型的实现细节，只有类型的简单描述，以及可以在这个型上所进行的一种操作。当然这里我们使用的是指向这个结构体的指针。我们希望达到的目标就是：**属性和行为的辩证统一**。每一个库都按照这样一个方法来实现，那我就会说在我们程序中结构体和结构体中所具有的方法，我们这个抽象的数据结构和我们数据结构上可以进行的操作集全部封装成了一个单一的库。可是在结构化的程序设计里面这样的属性和行为统一并不是特别的完美无缺。因为实际上，我们的操作集和我们的抽象数据结构仍然是分裂的，虽然我们表达在了同一个头文件里，这种分裂会导致用户也就是库的使用者在理解整个程序代码的时候出现问题，尤其当你把很多个这样的结构体混杂在一起的时候，很多个这样的抽象数据型封装在一个单一的库的时候，属性和行为上边就有可能在理解这个库的代码的时候会带来额外的负担。
+
+所以说当我们想表达这个数据封装和信息隐藏概念的时候，如果你没有这样的一个类的概念，你就没有办法清晰的定义，这是我们前面特别谈到的。最重要的一个地方就是我们怎么才能够通过一种特殊的机制将这样一个抽象的数据类型的数据封装和信息隐藏很好的利用起来，同时又让它的属性和行为在语言的实现的概念上完成辩证统一，实现这一点就是面向对象技术。
+
+**程序抽象**
+
+－数据封装、信息隐藏
+
+－如果没有类的概念，无法定义非指针量，且控制性不佳
+
+**对象的概念与意义**
+
+－量（对象首先要表达的一个概念就是量，它仍然是一个我们说的变量和常量）
+
+－（这样的量和它的行为应该统一地组织在一起）同时增强对象行为的主动性（我们不是在一定对象上施加一个操作，比如将，我们的PtDestroy，我是要销毁一个特定的点，那么我们就要传那个点的指针给PtDestroy函数，这样的一个销毁动作从行为角度来讲，它实际上是被动的，因为我要传一个参数进去给PtDestroy函数，让PtDestroy负责销毁它，我们希望所表达的是这个对象的行为主动性，也就是说，我们希望是一个点对象它自己发出一个销毁动作，然后释放它自己。这个就叫**对象行为的主动性**。
+
+这个思考方法和结构化程序的思考方法是有很大不同的：一个是被动性的思维，一个是主动性的思维；从程序设计这个角度来讲，一个是被动式的思维模式，一个是主动式的思维模式。
+
+那么很自然地我们就想，如果我们有这样一个接口库
+
+```c++
+// 想象的代码，非C++标准实现
+struct POINT
+{
+ int x, y; // 公开量，不符合数据信息隐藏规则
+ // x和y两个数据成员
+ Create( int x, int y );
+ void Destroy();
+ void GetValue( int * x, int * y );
+ void SetValue( int x, int y );
+ bool Compare( const POINT* point );
+ char* TransformIntoString();
+ void Print();
+}
+//当你使用一个struct结构体关键字来定义对象的时候，这里面所有的成员都是工开的，除非你限定它，否则他们都是公开的，x和y外界可见，你没有做到数据封装和信息隐藏。
+```
+
+那我们整个程序的架构就算相当完整了。我把这个点库所有的数据和它的操作集封装在一起，全都放在它的结构体的内部，这样的话不就完成了数据和代码它的属性和行为的有效地统一了么。我们想要的就是这样一个机制，这样的一个机制就叫面向对象技术。
 
 ## 十一.泛型编程
 
