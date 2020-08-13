@@ -15,6 +15,6 @@ int main()
     //printf("%d\n", (long p);
     cout << (intptr_t)p << endl;
     cout << &a << "\n" << p << "\n" << sizeof(void *) << "\n" << sizeof(a) <<endl;
-    cout << *q;
+    //cout << *q; //得转换后才能解引用
     return 0;
 }
