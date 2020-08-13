@@ -4439,6 +4439,359 @@ int main()
 - 上述转换要求提供一个单参数的从整数到Couple类的构造函数，如果使用explicit修饰该构造函数，隐式类型转换会被禁止；虽然即使不禁止，很多编译器也不进行此转换
 - 左右操作数不可互换，重载函数必须提供两个版本，它们的函数签名不同
 
+### 2.关系操作符的重载
+
+为数偶定义专用的关系操作符
+
+​	这里以等于和不等于为例
+
+```c++
+class Couple
+{
+public:
+ Couple( int a = 0, int b = 0 ) : _a(a), _b(b){ }
+ friend bool operator==( const Couple & c1, const Couple & c2 );
+ friend bool operator!=( const Couple & c1, const Couple & c2 );
+private:
+ int _a, _b;
+};
+```
+
+```c++
+bool operator==( const Couple & c1, const Couple & c2 )
+{
+ return (c1._a == c2._a) && (c1._b == c2._b);
+}
+bool operator!=( const Couple & c1, const Couple & c2 )
+{
+ return (c1._a != c2._a) || (c1._b != c2._b);
+}
+int main()
+{
+ Couple a( 1, 2 ), b( 3, 4 );
+ if( a == b ) 
+ 	cout << "a == b" << endl;
+ else
+ 	cout << “a != b" << endl;
+ return 0;
+}
+```
+
+**下标操作符重载的场合与目的**
+
+如果对象具有**数组成员，且该成员为主要成员**，可以重载下标操作符
+
+\- **目的：以允许在对象上通过数组下标访问该数组成员的元素**
+
+**下标操作符必须重载两个版本**
+
+常函数版本用于处理常量
+
+**数组下标越界错误**
+
+\- **可以在重载函数中处理数组下标越界错误，或使用异常处理机制**
+
+为数偶类定义专用的下标操作符
+
+```c++
+class Couple
+{
+public:
+ Couple( int a = 0, int b = 0 ) { _a[0]=a, _a[1]=b; }
+ int & operator[]( int index );
+ const int & operator[]( int index ) const;
+ //当它是常函数的时候，返回的是const int &
+private:
+ int _a[2];
+};
+```
+
+```c++
+int & Couple::operator[]( int index )
+{
+ if( index < 0 || index > 1 )
+ 	throw std::out_of_range( "Index is out of range!" );
+    //throw是c++为我们提供的异常处理机制，std::out_of_range,这是c++标准库里替我们定义好的一个异常类
+ return _a[index];
+}
+const int & Couple::operator[]( int index ) const
+{
+ if( index < 0 || index > 1 )
+ 	throw std::out_of_range( "Index is out of range!" );
+ return _a[index];
+}
+int main()
+{
+ Couple a( 1, 2 ), b( 3, 4 );
+ cin >> a[0] >> a[1];
+ cout << b[0] << " " << b[1] << endl;
+ return 0;
+}
+//重载后就可以直接像数组一样操纵这个类的一个对象。明明是一个对象，但是看上去就像一个数组一样。
+//如果一个对象被你构造出来后，它的主要行为像一个数组，其实你就应该提供一个小标操作符。如果不是，就不应该提供，因为你会让这个类库的使用者误以为它是一个数组。
+//下标操作符不是必须要存在的操作符
+//如果私有成员提供的不是数组，而是int _a,int_b;同样可以通过数组访问，相应的函数体也有变化，根据对应的索引返回对应的值，语句相对就长一点。
+//所以重要的是我们能够通过这个方式“[]”重载让类库的使用者以一个和数组相一致的方式来访问我们这个类中的数据成员。
+```
+
+### 3.赋值操作符
+
+#### 赋值操作符的一般形式
+
+和以前的几种操作符的重载都不太一样，它最重要的一个地方就是将要返回对本对象的一个引用。赋值嘛，就是要把另外一个数据传给我们这个当前的对象。
+
+当我们把赋值操作符重载为类的成员函数的时候，它的this指针将指向我们这个本对象，而本对象将接受别的对象的值，这是赋值操作最基本的语义。所以我们重载赋值操作符的时候我们应该返回当前对象的一个引用。这样能保证连续赋值的机制能够工作。这是非常重要的一个设计细节。
+
+```c++ 
+class Couple
+{
+public:
+ Couple( int a = 0, int b = 0 ) : _a(a), _b(b){ }
+ Couple( const Couple & c ) : _a(c._a), _b(c._b){ }
+ Couple & operator=( const Couple & c );
+private:
+ int _a, _b;
+};
+```
+
+```c++
+Couple & Couple::operator=( const Couple & c )
+{
+ if( *this == c ) 
+     //这里为啥可以这样判断？
+ 	return *this;
+ _a = c._a, _b = c._b;
+ return *this;
+}
+int main()
+{
+ Couple a( 1, 2 ), b( 3, 4 );
+ cout << a << endl;
+ a = b; 
+ cout << a << endl;
+ return 0;
+}
+```
+
+赋值它其实就是一个拷贝，它把另外一个对象拷贝给我们这个本对象。
+
+在某些场合，不判定两个对象是不是相等，就直接拷贝其实更合适。因为大多时候两者不相等，如果涉及到需要频繁拷贝的时候，条件判定反而降低程序效率。
+
+#### 复合赋值操作符重载
+
+加赋、减赋、乘赋、除赋、余赋。其实还有。
+
+```c++
+class Couple
+{
+public:
+ Couple( int a = 0, int b = 0 ) : _a(a), _b(b){ }
+ Couple( const Couple & c ) : _a(c._a), _b(c._b){ }
+ Couple & operator+=( const Couple & c );
+ Couple & operator*=( const Couple & c );
+ Couple & operator*=( const int & k );
+private:
+ int _a, _b;
+};
+```
+
+```c++
+Couple & Couple::operator+=( const Couple & c )
+{
+ _a += c._a, _b += c._b;
+ return *this;
+}
+Couple & Couple::operator*=( const Couple & c )
+{
+ _a *= c._a, _b *= c._b;
+ return *this;
+}
+Couple & Couple::operator*=( const int & k )
+{
+ _a *= k, _b *= k;
+ return *this;
+}
+```
+
+**递增递减操作符重载**
+
+单独列出来，因为"++"、"--"都涉及到对当前对象做一个加法或减法，它实际上也涉及到对本对象值的修改。所以它仍然算是一种广义的赋值。
+
+```c++
+class Couple
+{
+public:
+ Couple( int a = 0, int b = 0 ) : _a(a), _b(b){ }
+ Couple( const Couple & c ) : _a(c._a), _b(c._b){ }
+ Couple & operator=( const Couple & c );
+ Couple & operator++(); // 前缀递增，返回本对象的一个引用
+ Couple operator++( int ); // 后缀递增
+ //int 后面跟着的那个参数我们从来不用，它是那个操作符第二个操作数，有吗？没有。写它的唯一目的是为了区分它和前缀操作符。
+ //返回本对象的一个拷贝
+private:
+ int _a, _b;
+};
+
+//“++”操作符、“--”操作符，前缀、后缀的原始实现就是按照这个语义来实现的。所以当你重载的时候一定要维持这些操作符的原始的语义不变。
+```
+
+```c++
+Couple & Couple::operator++()
+{
+ ++_a, ++_b;
+ return *this;
+}
+Couple Couple::operator++( int t )
+{ 
+ Couple _t( *this );
+ //用*this去拷贝构造它
+ _a++, _b++;
+ return _t;
+ //返回原始对象的一个拷贝，这才能保证“++”操作符的运算将在我们这个表达式中，其它的表达式、操作符都算完了，它才最后算，先参与运算后递增递减。
+}
+```
+
+**除后缀递增递减操作符，其它应返回对象的引用**，以与C++本身语义相符
+
+\- **返回对象需要额外的对象构造，降低效率**（当这个对象尺寸很大的时候）
+
+如果不需要使用返回值以进行连续赋值（c=b=a），可以将返回值设为void，但要注意此时重载的操作符语义与C++不符，不推荐
+
+#### 赋值构造与拷贝构造
+
+**赋值也是构造**
+
+拷贝、赋值与析构三位一体，**一般同时出现**（如果你提供了一个拷贝构造函数，提供了一个赋值构造函数，也就是我们的赋值操作符重载，可以称之为赋值构造，那么理论上你应该同时提供析构函数；这三个往往同时出现或都不出现）
+
+​	缺省情况下，编译器会给你自动生成拷贝构造函数、赋值操作符、析构函数，缺省的都为浅拷贝 
+
+​	如果对象没有指针成员，缺省行为即可满足要求，无需实现或重载	这三个函数
+
+​	如果对象有指针成员，并且涉及到动态内存分配的问题，一般需要重载这三个函数
+
+```c++
+class A
+{
+public:
+ A() : _n(0), _p(NULL) { }
+ explicit A( int n ) : _n(n), _p(new int[n]) { }
+ A( int n, int * p ) : _n(n), _p(p) { }
+ A( const A & that ) : _n(that._n), _p(that._p) { }
+ A & operator=( const A & that ) { _n = that._n, _p = that._p; return *this; }
+ virtual ~A() { if(_p){ delete[] _p, _p = NULL; } }
+public:
+ int & operator[]( int i );
+ const int & operator[]( int i ) const;
+private:
+ int _n;
+ int * _p;
+};
+```
+
+**补充：**
+
+explict关键字
+
+C++提供了关键字explicit，可以阻止不应该允许的经过转换构造函数进行的隐式转换的发zhi生。声明为explicit的构造函数不能在隐式转换中使用。
+
+C++中， 一个参数的构造函数， 承担了两个角色。 1 是个构造器 2 是个默认且隐含的类型转换操作符。
+所以， 有时候在我们写下如 AAA = XXX， 这样的代码， 且恰好XXX的类型正好是AAA**单参数构造器**的参数类型， 这时候编译器就自动调用这个构造器， 创建一个AAA的对象。
+这样看起来好象很酷， 很方便。 但在某些情况下（见下面权威的例子）， 却违背了我们（程序员）的本意。 真是成也萧何， 败也萧何。 这时候就要在这个构造器前面加上explicit修饰， 指定这个构造器只能被明确的调用，使用， 不能作为类型转换操作符被隐含的使用。 呵呵， 看来还是光明正大些比较好。
+
+```c++
+class Test1
+{
+ public:
+ 	Test1(int n) { num = n; } //普通构造函数
+ private:
+ 	int num;
+ };
+class Test2
+ {
+ public:
+ 	explicit Test2(int n) { num = n; } 
+ 	//explicit(显式)构造函数
+ private:
+ 	int num;
+ };
+
+ int main()
+ {
+ Test1 t1 = 12; //隐式调用其构造函数, 成功
+ Test2 t2 = 12; //编译错误,不能隐式调用其构造函数
+ Test2 t3(12); //显示调用成功
+ return 0;
+ }
+```
+
+普通构造函数能够被隐式调用。而explicit构造函数只能被显示调用。
+
+> ```c++
+> class Stack {
+> explicit Stack(int size);
+> ..
+> }
+> explicit 表示禁止从类型int到类型Stack的隐式转换:
+> Stack s1(40); // OK
+> Stack s2 = 40; // Error
+> ```
+>
+>
+> 推荐C++ 语言作者写的书《C++程序设计语言》，关于C++ 这门语言，你想知道的里面几乎都有哈！
+
+#### 浅拷贝与深拷贝
+
+浅拷贝拷贝指针，使b与a指向同一块内存区域，深拷贝要拷贝完整的副本，不仅拷贝指针，还拷贝指针所指向的目标数据对象的一个副本，然后指针各自指向自己的目标数据对象内存区域。
+
+深拷贝：
+
+```c++
+class A
+{
+public:
+ A() : _n(0), _p(NULL) { }
+ explicit A( int n ) : _n(n), _p(new int[n]) { }
+ A( int n, int * p ) : _n(n), _p(p) { }
+ A( const A & that );
+ A & operator=( const A & that );
+ virtual ~A() { if(_p){ delete[] _p, _p = NULL; } }
+public:
+ int & operator[]( int i );
+ const int & operator[]( int i ) const;
+private:
+ int _n;
+ int * _p;
+};
+```
+
+```c++
+A::A( const A & that )
+{
+ this->_n = that._n;
+ _p = new int[_n];
+ for( int i = 0; i < _n; i++ )
+ _p[i] = that._p[i];
+}
+A & A::operator=( const A & that )
+{
+ this->_n = that._n;
+ if( _p )
+ delete[] _p;
+ _p = new int[_n];
+ for( int i = 0; i < _n; i++ )
+ _p[i] = that._p[i];
+ return *this;
+}
+```
+
+拷贝构造与赋值构造的区别：
+
+1)拷贝构造函数无返回值，赋值构造（赋值操作符的重载）返回 *this；2)当我进行赋值操作的时候，事实上意味着我们的本对象已经存在了，那么它的_p就有可能指向一个有意义的数组，而这个数组在我们赋值操作后它就没有意义了，我们必须构造一个跟that那个对象一模一样的数组才成对吧，所以在new int[ _n ]之前你必须销毁 _p 所指向的那个目标数组。
+
+#### 移动语义（C++11）
+
+主要是解决深拷贝和浅拷贝的一些问题
+
 
 
 ## 十一.泛型编程
