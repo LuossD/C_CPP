@@ -5237,28 +5237,348 @@ std::cout << std::dec << n << '\n' << std::hex
 
 - 文件生命周期可能远远超过创建它的程序本身
 
-  程序运行完后得到一个结果，我把这个结果写道这个文件里，程序就结束了，那个文件还在，我下一次运行这个程序，就从那个文件中把那个数据读出来，这个动作叫数据的持久化。
+  程序运行完后得到一个结果，我把这个结果写道这个文件里，程序就结束了，那个文件还在，我下一次运行这个程序，就从那个文件中把那个数据读出来，这个动作叫**数据的持久化**。
 
 文件操作：读、写
 
-- 一般使用文件指针，该指针代表文件的当前访问位置 
+- 一般使用文件指针，该指针代表文件的当前访问位置（你的数据读取或写入将从当前文件的什么地方开始，就这个意思） 
 
-- 老式的C语言使用文件句柄（handle）或文件描述符（file descriptor）
-  表示某个打开的文件数据对象
+- 老式的C语言使用文件句柄（handle）或文件描述符（file descriptor）表示某个打开的文件数据对象
 
 文件流的使用
 
-- 头文件：“fstream” - 按照特定格式重载类的流操作符
+- 头文件：“fstream”
+- 按照特定格式重载类的流操作符（这样的话才能把这个指定的对象按照一个特定的方式流出去，否则的话，你就得一个成员、一个成员地自己手工去写操作，那就麻烦了，因为好多成员都是私有的，在这种情况下你必须提供对应的Get/Set函数你才能操作嘛，而且那个格式就很费劲，你要一个一个地去写，对于这个类的使用者来讲，输出一次类的信息确实很麻烦，如果对象很多，那代码写起来就很长，会崩溃，那么对于库的设计者来讲，你为了让它不崩溃，你就得重载类的流操作符）
+- （一旦我们重载了流操作符）那么只需要创建文件流对象，然后进行输入输出，完事了。
 
-- 创建文件流对象，输入输出
+```c++
+文件打开模式
+- std::ios_base::app：每次插入都定位到文件流的尾部
+  // 追加模式打开
+- std::ios_base::binary：使用二进制而不是文本格式打开文件流 
+  // 二进制模式打开
+- std::ios_base::in：流用于输入目的，允许提取，此为std::ifstream 流缺省设置
+  // 输入模式打开
+- std::ios_base::out：流用于输出目的，允许插入，此为std::ofstream 流缺省设置
+  // 输出模式打开
+- std::ios_base::trunc：若文件存在，清除文件内容，此为
+std::ofstream流缺省设置
+- std::ios_base::ate：若文件存在，定位到文件尾部，文件一般保存在外部存储设备上
+```
 
 流状态：
 
+每一个流打开以后，它都有一个特定的流状态，流状态就表示我们在流进行操纵过程中，它成功或失败的一个状态信息。
+
+```c++
+流状态：表示操作成功或失败的状态信息
+- std::ios_base::goodbit：// 好位状态，是指当这个操作做完以后流是完好无损的，操作成功了，就这个意思。
+- std::ios_base::badbit：// 流已出现致命错误，一般无法恢复
+- std::ios_base::eofbit：// 流结束位，流结束时设置
+- std::ios_base::failbit：// 流操作失败时设置，可能恢复；比如我想打开一个文件，但是那个文件被别人锁定了，这个时候就返回failbit。
+流操作本身都可能影响我们的流状态，而流状态当然对流操作行为其实也能够造成影响。
+流状态对流操作行为的影响
+- 一旦流状态存在错误，所有I/O操作都失效
+- 在出现std::ios_base::failbit与std::ios_base::badbit状态时，输出操作立即停止
+- 在非std::ios_base::goodbit状态时，输入操作立即停止
+```
+
+可以通过一系列的成员函数来测试我们的流处于什么样的状态。
+
+```c++
+流状态测试
+- bool std::ios_base::good() const：没有出现任何错误时返回真 
+- bool std::ios_base::eof() const：设置std::ios_base::eofbit状态时返回真 
+- bool std::ios_base::fail() const：设置std::ios_base::failbit状态时返回真 
+- bool std::ios_base::bad() const：设置std::ios_base::badbit状态时返回真 
+- bool std::ios_base::operator !() const：与std::ios_base::fail() 效果相同
+- std::ios_base::operator void*() const：std::ios_base::fail() 为真时返回空指针，否则非空
+```
+
 流定位：
 
+流读取的位置，它有一个文件指针指向它嘛，就会时刻发生变化，我想知道这个位置指针到底指向了哪里，或者我想把它设到一个特定的地方，那么我就需要对这个流进行定位。
 
+**流位置指针**
+
+- 位置指针指向下一次读写操作时的数据对象在流中的位置，该指针会随着输入输出操作而不断变化 
+
+- 单向流：一个位置指针；双向流：两个位置指针
+
+流位置指针的获取
+
+- 成员函数tellp()：获取当前的流位置指针（写指针）
+
+- 成员函数tellg()：获取当前的流位置指针（读指针）
+
+流位置指针的定位
+
+- 成员函数seekp()：将文件位置指针定位到某个特定位置，用于插入（输出）目的，写的。
+
+- 成员函数seekg()：将文件位置指针定位到某个特定位置，用于提取（输入）目的的定位，读取的。
+
+当你用seekp和seekg进行流指针定位的时候，要注意可以提供一个单参数的版本。
+
+流定位函数seekp()与seekg()
+- 单参数版本：可以使用获取的位置指针（就是可以使用获取的位置指针来去做它）
+
+- 双参数版本：第一个参数为偏移量；第二个参数为定位基准
+
+定位基准
+
+- std::ios_base::beg：从流的开始位置开始计算偏移量 
+- std::ios_base::cur：从当前位置开始计算偏移量 
+- std::ios_base::end：从流的结束位置开始计算偏移量
 
 #### 文件输入输出
+
+```c++
+将点对象输出到文件中
+#include <fstream>
+#include "point.h"
+using namespace std;
+int main()
+{
+ ofstream ofs( "~/CPP/filestream/data.txt" );// 定义一个ofstream类的一个对象，然后把它跟一个文件挂在一块，然后就像标准的流操作一样，就可以访问那个文件了，多方便。输入其实也一样，看下例。
+ // ofs.open( "~/CPP/filestream/data.txt" );
+ Point2D pt2d( 1, 2 ); 
+ Point3D pt3d( 3, 4, 5 );
+ ofs << pt2d;
+ ofs << pt3d;
+ // 把这两个点对象流到文件里
+ ofs.close();
+ // 关闭这个文件，这个输出文件流就和那个文件它的关系就被打断了。
+ return 0;
+};
+// 第一件事情，我们要构造一个输出文件流对象，这个输出文件流对象从属于类ofstream，我们就输出流对象叫ofs。然后我用一个单参数的构造函数构造它，这个参数就是那个输出文件的文件名。如果你缺省构造，没有传文件名，那么在这个ofs输出流构造完毕之后，可以调用它的成员函数open，传文件名参数进去，打开那个对应的文件也可以。
+```
+
+```c++
+将Point2D、Point3D对象从文件中读取出来
+#include <fstream>
+#include "point.h"
+using namespace std;
+int main()
+{
+ ifstream ifs( "~/CPP/filestream/data.txt" );
+ Point2D pt2d; 
+ Point3D pt3d;
+ ifs >> pt2d >> pt3d;
+ ifs.close();
+ return 0;
+};
+```
+
+看看Point2D和Point3D的具体实现
+
+```c++
+class Point2D : public Point
+{
+public: 
+ friend ostream & operator<<( ostream & os, const Point2D & pt );
+ friend istream & operator>>( istream & is, Point2D & pt );
+};
+ 
+class Point3D : public Point2D
+{
+public:
+ friend ostream & operator<<( ostream & os, const Point3D & pt );
+ friend istream & operator>>( istream & is, Point3D & pt );
+};
+```
+
+```c++
+ostream & operator<<( ostream & os, const Point2D & pt ) {
+ os << '(' << pt._x << ',' << pt._y << ')';
+ return os; }
+// 逐字符分析，确保文件非致命改动不影响数据读取
+istream & operator>>( istream & is, Point2D & pt ) 
+{
+ char _c; 
+ int _a[2] = {0, 0}, _i = 0; 
+ bool _started = false;
+ _c = is.get();
+ while( _c != '\n' ){
+ 	if( _c == '(' ){ _started = true; }
+ 	else if( isdigit(_c) ){ if( _started ) _a[_i] = 		_a[_i] * 10 + _c - 48; }
+         // _a[0]开始等于0，比如23先读取2，然后遇到3，                 2*10+3，48为0的ASCII码值。
+ 	else if( _c == ',' ){ _i++; }
+    // 遇到逗号就开始读取下一个数
+ 	else if( _c == ')' ){ _started = false; break; }
+ 	_c = is.get();
+    // istream的get()成员函数来读取一个字符
+ }
+ pt._x = _a[0], pt._y = _a[1]; 
+ return is;
+}
+```
+
+**数据持久化**
+
+持久化：将数据保存在外部磁盘文件中，在程序运行时装入内存，
+在程序结束时重新写回文件（保证我们的数据在整个程序存续之外，它仍然能够存在，那这个数据不久持久化了嘛，就长时间存在的意思）
+
+思考题
+
+- 考虑下述编程任务。存在一个数据结构，需要将其数据流入流出。为提升程序效率，只在必要时进行数据持久化，即仅当内存中的数据发生变化时才写入文件。如何实现？提示：（1）需要考虑内存数据的来源和目的地对数据持久化的影响。（2）使用下一章将要讨论的动态型式转换技术，实现效果更佳。
+
+问题是我们在重载我们的流操作的时候，我们是以ostream类的一个引用来传递这个参数的，它是ostream，它是输出流类，它不是文件流类，就是说我重载这个流不仅仅适应于我们的文件流，它还适应于一般的流，包括字符串流，那么这个数据到底是从文件流进来的还是从其它的一个普通流对象中流进来的，对这个数据是否更新，也就是它和磁盘文件中的那个数据是不是完全一致，它们的影响是不一样的，当你重载这两个流操作符的时候，在内部必须能够处理这个问题，而处理这个问题最好的方案就是需要运行期的型式信息。
+
+### 5.操作符重载总结
+
+哪些操作符可以重载？
+- 不可重载操作符：“::”、“?:”、“.”、“.*”、“sizeof”、“#”、“##”、 “typeid” 
+
+- 其他操作符都可重载（这是指C++11以前的，C++11后来又添加了很多操作符，那些就不在我们目前的考虑范围之内）
+
+操作符重载原则
+
+- 只能使用已有的操作符，不能创建新的操作符
+- 操作符也是函数，重载遵循函数重载原则
+- 重载的操作符不能改变优先级与结合性，也不能改变操作数个数及语法结构
+- 重载的操作符不能改变其用于内部类型对象的含义，它只能和用户自定义类型的对象一起使用，或者用于用户自定义类型的对象和内部类型的对象混合使用
+- 重载的操作符在功能上应与原有功能一致，即保持一致的语义
+
+操作符重载的类型：成员函数或友元函数
+
+​	（大部分操作符都是既可以当成员函数来重载也可以当友元函数来		重载的）
+
+- 重载为类的成员函数：少一个参数（隐含this，表示二元表达式的左参数或一元表达式的参数）  
+
+- 重载为类的友元函数：没有隐含this参数（单参数的话，不重载为类的友元函数）
+
+成员函数与友元函数
+
+- 一般全局常用操作符（关系操作符、逻辑操作符、流操作符）重载为友元函数，**涉及对象特殊运算的操作符重载为成员函数**
+- 一般单目操作符重载为成员函数（就不把这个函数的名字公开在外部形成全局的嘛，你重载为友元函数的话那个函数往往就是全局的），双目操作符重载为友元函数（这样的话左操作数和右操作数可以相当灵活地去设置，使用其实更加方便）
+- 部分双目操作符不能重载为友元函数：“=”、“()”、“[]”、“->” （必须隐式地提供它的this指针）
+- 类型转换操作符只能重载为类的成员函数
+
+PS：所谓几目，就bai是说它约束几个对du象。比如[]，重载的时候，左边是数组名，右边是数组下标或者另一个中括号。 有两个运算对象。
+
+```c++
+重载的操作符参数：一般采用引用形式，主要与数学运算协调
+- 示例：
+Couple a(1,2), b(3,4), c; 
+c = a + b; 
+- 若有定义：Couple Couple::operator+(Couple*, Couple*) { …… }
+- 则需调用：
+Couple a(1,2), b(3,4), c; 
+c = &a + &b; // 参数为传指针，必须写上&操作符
+// 当然你可以写Couple *a、Couple *b，然后我new它们嘛，这样就可以写c=a+b，但是那就限定了你所有的对象必须是个指针，必须动态构造。这样就很麻烦，引用传递的目的就在这里，就是为了处理这个问题的，以与数学运算相协调，所以参数传递必须用引用形式，不管是左值引用还是右值引用。
+```
+
+最后简单的罗列一下C++操作符重载的函数原型。这是我们推荐的函数原型，平时操作符重载的时候，应该按照这样的一个模式进行操作。换作其它模式，有的时候不是不可以，但是它并不是特别恰当的方案。
+
+```c++
+操作符重载的函数原型列表（推荐） 
+普通四则运算
+- friend A operator + ( const A & lhs, const A & rhs );
+- friend A operator - ( const A & lhs, const A & rhs );
+- friend A operator * ( const A & lhs, const A & rhs );
+- friend A operator / ( const A & lhs, const A & rhs );
+- friend A operator % ( const A & lhs, const A & rhs );
+- friend A operator * ( const A & lhs, const int & rhs ); // 标量运算，如果存在
+- friend A operator * ( const int & lhs, const A & rhs ); // 标量运算，如果存在
+
+关系操作符
+- friend bool operator == ( const A & lhs, const A & rhs ); 
+- friend bool operator != ( const A & lhs, const A & rhs );
+- friend bool operator < ( const A & lhs, const A & rhs );
+- friend bool operator <= ( const A & lhs, const A & rhs );
+- friend bool operator > ( const A & lhs, const A & rhs );
+- friend bool operator >= ( const A & lhs, const A & rhs );
+```
+
+```c++
+操作符重载的函数原型列表（推荐） 
+逻辑操作符
+- friend bool operator || ( const A & lhs, const A & rhs );
+- friend bool operator && ( const A & lhs, const A & rhs );
+- bool A::operator ! ( );
+
+正负操作符
+- A A::operator + (); // 取正 
+- A A::operator - ( ); // 取负 
+
+递增递减操作符
+- A & A::operator ++ (); // 前缀递增
+- A A::operator ++ ( int ); // 后缀递增
+- A & A::operator --(); // 前缀递减
+- A A::operator -- ( int ); // 后缀递减
+```
+
+位操作符平时我们不建议重载
+
+```c++
+ 位操作符
+- friend A operator | ( const A & lhs, const A & rhs ); // 位与 
+- friend A operator & ( const A & lhs, const A & rhs ); // 位或 
+- friend A operator ^ ( const A & lhs, const A & rhs ); // 位异或 
+- A A::operator << ( int n ); // 左移
+- A A::operator >> ( int n ); // 右移
+- A A::operator ~ (); // 位反
+```
+
+```c++
+动态存储管理操作符：全局或成员函数均可 
+- void * operator new( std::size_t size ) throw( bad_alloc );
+- void * operator new( std::size_t size, const std::nothrow_t & ) throw( );
+- void * operator new( std::size_t size, void * base ) throw( ); 
+// 带哑型指针参数，作为一个基地址的参数，意味着它的内存分配将在一个固定的内存区域，而这个内存区域是已经分配好的，不管是动态分配还是静态分配，反正已经分配好了。然后我们新创建一个对象，就不再真正分配内存，而只是在已经分配好的就是base指针所指向的那段内存区域里为我们新的对象划定一个存储空间保存，这个我称它为定位创生。这个new操作符重载有的时候相当有意义，我们的应用程序我需要频繁地开辟一些小数组，很小但是很频繁，因为程序语义本身要求这么做，那么频繁从全局里面去new、delete、new、delete，很讨厌，要从全局堆里面进行分配，效率其实是低的，在这种时候我可以在程序运行一开始，就划定一个非常大的存储空间，上来就从操作系统中把这个存储空间给分配过来，要过来。然后我应用程序内部每次需要分配小数据对象，想返回的时候就在我这个分配空间里面一个接着一个地去分配和管理它，固定在同样的小片区域里，这个内存区域里，这个内存区域我们称它为缓冲池，你就可以重载这个new操作符来处理你应用程序的特定对象的存储管理问题。你可以在这个过程中提升整个程序的效率，你甚至可以为你的应用程序提供垃圾回收机制处理这个指针问题，相当重要的一个设计细节。
+// new和delete既可以重载为全局的也可以重载为类的成员函数，大部分情况下，重载为类的成员函数要更安全一些，重载为全局的有的时候一旦覆盖了全局的new版本，可能会导致我们的程序出现难以预料的结果，所以重载的时候需要特别小心。
+- void * operator new[]( std::size_t size ) throw( bad_alloc );
+- void operator delete( void * p );
+- void operator delete []( void * p );
+```
+
+```c++
+操作符重载的函数原型列表（推荐） - 赋值操作符
+- A & operator = ( A & rhs );
+- A & operator = ( const A & rhs );
+- A & operator = ( A && rhs );
+- A & operator += ( const A & rhs );
+- A & operator -= ( const A & rhs ); 
+- A & operator *= ( const A & rhs );
+- A & operator /= ( const A & rhs );
+- A & operator %= ( const A & rhs );
+- A & operator &= ( const A & rhs );
+- A & operator |= ( const A & rhs );
+- A & operator ^= ( const A & rhs );
+// 位运算的赋值
+- A & operator <<= ( int n );
+- A & operator >>= ( int n );
+```
+
+```c++
+下标操作符
+- T & A::operator [] ( int i );
+- const T & A::operator [] ( int i ) const; 
+
+函数调用操作符
+- T A::operator () ( … ); // 参数可选
+// 这样的话，这个函数就有一个operator()这样的一个函数，就让这个对象可以像函数一样去运行一下。函数调用操作符有时候会很神奇，它会给我们带来很重要的一个结果，就像前面讲流对象那样，它的操纵符带参数的，那它其实就是一个函子，就意味着它事实上在实现上就是重载了函数调用操作符的一个函数对象，它就是一个对象。
+
+类型转换操作符（只能重载为类的成员函数）
+- A::operator char * () const; 
+- A::operator int () const; - A::operator double () const; 
+- 逗号操作符
+- T2 operator , ( T1 t1, T2 t2 ); // 不建议重载，因为它的优先级真的很低，而且真的没有必要
+```
+
+```c++
+指针与选员操作符
+- A * A::operator & ( ); // 取址操作符
+- A & A::operator * ( ); // 引领操作符
+- const A & A::operator * ( ) const; // 引领操作符
+- C * A::operator -> ( ); // 选员操作符
+- const C * A::operator -> ( ) const; // 选员操作符
+- C & A::operator ->* ( … ); // 选员操作符，指向类成员的指针(这个技术细节很偏，需要的时候再去认识它)
+
+流操作符
+- friend ostream & operator << ( ostream & os, const A & a );
+- friend istream & operator >> ( istream & is, A & a );
+```
 
 
 
