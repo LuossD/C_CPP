@@ -4,7 +4,9 @@
 
 using namespace std;
 
-void map(int n)
+char map(int n)
 {
-    n = GenerateRandomNumber(1, 52);
+    
 }
+while()
+    n = GenerateRandomNumber(1, 52);

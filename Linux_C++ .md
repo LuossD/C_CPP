@@ -152,7 +152,7 @@ b=d.Getint();
 <对象>.<函数名>的方式来调用
 ```
 
-
+### 10.sloc：source line of codes---源代码行
 
 ## 写程序出现的问题
 
@@ -2644,8 +2644,7 @@ as_string = DoTransformObjectIntoString;
 
 returned_value = as_string( (ADT)pt );//第一个小括号表示函数调用
 //因为as_string需要带的是ADT类型的参数，而不是PPOINT类型的参数，而我们实际上是PPOINT类型的对象，要传进去，所以要把它转换成ADT，在它的内部，DoTransformObjectIntoString这个函数内部还要把pt从ADT类型再重新转换成PPOINT，然后才能去操作，中间这两步转换其实都是必要的。
-要区分函数指针调用和函数直接调用，使用下述格式调用函数指针指向的函
-数：
+要区分函数指针调用和函数直接调用，使用下述格式调用函数指针指向的函数：
  returned_value = ( *as_string )( (ADT)pt );
 //严格来讲，as_string实际上是一个指针，你要想访问他的目标数据对象或者它的目标函数，需要使用引领操作符，其实标准格式就应该这么写： *as_string引领它的目标数据对象，这是一个函数，然后调用函数；
 //第一个小括号对必不可少，如果没有这个小括号对，那就相当于as_string就是一个函数，然后调用，因为它是一个函数指针，那么你还可以调用，没问题，as_string就调用这个函数指针变量所指向的那个目标函数DoTransformObjectIntoString，然后去做点的转换，转换完以后它会返回一个字符串指针，前面用“*”去引领，返回那个目标字符串，实际上得到返回的目标字符串的0号字符，然后你想赋值给returned_value就出现赋值不兼容，把字符赋值给一个字符串，编译器就报错！
@@ -4483,6 +4482,8 @@ int main()
 }
 ```
 
+### 3.下标操作符重载
+
 **下标操作符重载的场合与目的**
 
 如果对象具有**数组成员，且该成员为主要成员**，可以重载下标操作符
@@ -4540,7 +4541,7 @@ int main()
 //所以重要的是我们能够通过这个方式“[]”重载让类库的使用者以一个和数组相一致的方式来访问我们这个类中的数据成员。
 ```
 
-### 3.赋值操作符
+### 4.赋值操作符
 
 #### 赋值操作符的一般形式
 
@@ -5039,7 +5040,7 @@ int main()
 
 ​		意思是完成一个参数从一个函数到另外一个函数的传递，这叫转发。一个函数在运行期间它会接受一个参数，它内部可能不做处理，也可以只做简单处理，然后就把参数传递给另外一个函数，转发对库的设计可能是很重要的，在右值引用出现之前，我们就没有一个完美转发过程，不管你使用什么样的逻辑来实现它，这个转发总是有一些缺陷的，我们转发最好能够做到什么程度呢？就是接受什么样的值，就传出去什么样的值，而没有右值引用，这个事情是做不到的。
 
-### 4.流操作符重载
+### 5.流操作符重载
 
 #### 流操作符重载的一般形式
 
@@ -5430,7 +5431,7 @@ istream & operator>>( istream & is, Point2D & pt )
 
 问题是我们在重载我们的流操作的时候，我们是以ostream类的一个引用来传递这个参数的，它是ostream，它是输出流类，它不是文件流类，就是说我重载这个流不仅仅适应于我们的文件流，它还适应于一般的流，包括字符串流，**那么这个数据到底是从文件流进来的还是从其它的一个普通流对象中流进来的，对这个数据是否更新，也就是它和磁盘文件中的那个数据是不是完全一致，它们的影响（对数据是否需要持久化的影响）是不一样的**，当你重载这两个流操作符的时候，在内部必须能够处理这个问题，而处理这个问题最好的方案就是需要运行期的型式信息。
 
-### 5.操作符重载总结
+### 6.操作符重载总结
 
 哪些操作符可以重载？
 - 不可重载操作符：“::”、“?:”、“.”、“.*”、“sizeof”、“#”、“##”、 “typeid” 
@@ -5460,7 +5461,7 @@ istream & operator>>( istream & is, Point2D & pt )
 - 部分双目操作符不能重载为友元函数：“=”、“()”、“[]”、“->” （必须隐式地提供它的this指针）
 - 类型转换操作符只能重载为类的成员函数
 
-PS：所谓几目，就bai是说它约束几个对du象。比如[]，重载的时候，左边是数组名，右边是数组下标或者另一个中括号。 有两个运算对象。
+PS：所谓几目，就是说它约束几个对象。比如[]，重载的时候，左边是数组名，右边是数组下标或者另一个中括号。 有两个运算对象。
 
 ```c++
 重载的操作符参数：一般采用引用形式，主要与数学运算协调
@@ -7122,10 +7123,6 @@ int main()
 
 \- **注：对操作系统编程而言，元编程意义不大，一般用到的场合是非常非常受限的**
 
-
-
-### 10.工程实践例子
-
 #### 1）Fibonacci数列
 
 如果想算Fibonacci<3>，它就用3作为i的值，传给这个类模板去体化它，体化出来的结果就是要获取这个value的值，编译的时候它还要去算这个事情，想算Fibonacci<3>的值，那么它必须去算Fibonacci<2>的value值，Fibonacci<1>的value值，把两者之和算出来，一旦它发现这里面有一个Fibonacci<2>，这也是一个类模板的一个体化啊，它会继续体化它，同样的方式把2传进去去体化它，它不就递归的体化这个类模板嘛，一直到它能够得到明确的结论。当然不同的编译器对这个体化的深度，也就是所谓的模板体化深度，它的嵌套的深度有特定的要求。一般像500、800、1000次这个意思，因为太深的话编译时间受不了。就像写递归函数一样，你必须提供递归终止条件，那我们怎么做呢这里，我们就做**类模板的特化**，通过特化给出它的终止条件。
@@ -7212,4 +7209,363 @@ int main()
  std::cout << std::endl; 
 }
 ```
+
+### 10.工程实践例子
+
+#### 事件机制
+
+事件基本概念
+
+\- **操作系统或应用程序内部发生某件事，程序的某个组件需要响应该事件，并进行特定处理**，这个处理的方案和方式就叫事件机制
+
+**面向对象架构中，事件响应函数最可能为成员函数**
+
+​	（没有面向对象技术之前，我们只有一个方案，使用函数指针）
+
+- 问题：指向类成员函数的指针不能转换为哑型指针void *，这一点是和普通的函数指针是不一样的，因为它不仅仅包括了那个成员函数的特性还包括了那个类的特性（首先，它有一个指向那个类的对象的指针标记，其次它有那个成员函数在那个对象中的那个属性的描述，它实际上在实现上都不一定是指针，尺寸都有可能是变化的，实现策略和哑型指针是完全不一样的两回事），所以两者不能自如地互相转化，不能转型那就有问题。因为我们响应这个事件的将会是某一个对象的成员函数，而这个对象从属于哪个类不同的时候是不一样的，成员函数名字也有可能不一样，只要那个对象不一样这个事情就大条了。不仅不能转型成哑型指针，也不能随意转换为指向另一个类的成员函数的指针
+
+- 解决方案：当你用对象无法实现的时候，那么你就使用指向对象的指针来实现它，当你用指向对象的指针无法实现的时候，那么你就用指向对象的指针的指针，所以使用指向指向类成员函数的指针的指针，用一个二级指针，**这是非常重要的技巧**
+
+所以在C++里实现事件机制的时候，那么我们在工程实践的场合，需要借助于模板的概念，形成事件委托模型。
+
+实现策略：事件委托模型
+- Event类模板：管理事件响应者对象，实现事件多播 
+- EventResponsor类模板：响应者对象与响应者行为配对（也就是事件响应者是谁，它的响应行为是哪一个）
+- Empty类：委托模型和指针转换
+
+```c++
+#include <iostream>
+#include <vector>
+using namespace std;
+// 空类，用于指代响应者对象
+class Empty { };
+// 事件响应者类模板，保存特定事件的响应者与响应行为
+template< typename EventAction > class EventResponsor
+{
+ // 每一个事件响应者模板，它都保存着特定事件的响应者和它对应的响应行为，所以它包括两个字段，这两个字段为了处理的方便，把它公开了。
+public:
+ EventResponsor() : actor(NULL), action(NULL) { }
+ EventResponsor( Empty * actor, EventAction * action ) : actor(actor), action(action) { }
+  // EventResponsor并不负责这两个指针的动态分配与释放的问题
+  // 如果是actor只要比较两者是否相等，因为他们都是指向那个对象的指针；而后面那个action存的是二级指针，是指向指向类成员函数的指针的指针，所以我们要比较的时候必须先引领然后再比较，才能看它们是否是同样的一个类的成员函数  
+ friend bool operator==( const EventResponsor & lhs, const EventResponsor & rhs )
+ { return lhs.actor == rhs.actor && *lhs.action == *rhs.action; }
+public: // 公开的数据成员，以方便使用者
+ Empty * actor; // 行动者，记录的就是那个对象
+ EventAction * action; // 响应行为
+ // 当我们最终响应这个行为的时候，我们将在actor这个对象上做这个action，就用这两个属性完成最终的事件响应机制的响应者行为和响应者对象的配对和拼接
+}; // template<typename EventAction> class EventResponsor
+```
+
+接下来是事件类模板
+
+```c++
+// 事件类模板，用于管理特定事件的所有响应者
+template< typename EventAction > class Event
+{
+ // typename 里还是事件活动
+public:
+ typedef vector<EventResponsor<EventAction> > EventResponsors;
+  // 早期的编译器认为>>是一个输入操作符，它会混淆，所以必须加空格，C++11以后的编译器都能处理这个问题，不加空格也行
+ typedef typename vector<EventResponsor<EventAction> >::iterator EventIterator;
+ // 有的时候，在模板中，我们很难决定一个特定的名字它到底是一个型还是一个量，所以如果你想明确的告诉编译器这是一个型而不是一个量，可以在这个型的名字前面加上type那么
+ // 定义两个型，使用向量来构造所有响应同样的事件的响应者，一个事件响应者有很多个的，所以我用一个向量来保存它。<> 里就是那个事件响应者的类型，它是一个模板，每次写那一长串很烦人，所以用typedef给它定义出来EventResponsors，表示一个事件响应者集合
+public:
+ virtual ~Event()
+ {
+ for( EventIterator it = this->_ers.begin(); it != this->_ers.end(); ++it )
+ {
+ delete it->action, it->action = NULL;
+ // 一个接着一个的删除它的事件响应者
+ // 因为事实上我们只动态构造一个东西，就是action的那个指针，所以我们只要销毁它就行了，它析构的时候，剩下的向量本身由这个事件这个类自动地替我们析构，
+ }
+ }
+ EventResponsors & GetResponsors() { return this->_ers; }
+```
+
+最重要的两个函数来了：
+
+```c++
+// 事件绑定，将实际响应者和响应行为挂接到事件响应者对象上
+// 传两个模板的形式参数，一个是Responsor响应者，一个是响应者的活动Action；它们的类型注意和我们前面那个并不完全匹配，它也并不需要完全匹配，这只是模板的形式参数
+ template< typename Responsor, typename Action >
+ void Bind( Responsor * actor, Action action )
+ {
+  // 那个活动本身就是一个指针了，它是指向类成员函数的指针，所以不需要再用指针来了，我们传进来不需要，我们内部会new它的
+ Action * act = new Action( action );
+ // 构造一个指向指向类成员函数的指针的指针
+     
+ EventResponsor<EventAction> er( (Empty*)actor, (EventAction*)act );
+ bool unbound = true;
+ for( EventIterator it = this->_ers.begin(); it != this->_ers.end(); ++it )
+ {
+ // 相等就表示这个事件响应者对象已经被我们在向量列表中绑定进去了，已经有了actor是一样的，它对应的action也是一样的
+ if( *it == er ) // 发现重复的事件响应者，说明已绑定
+ {
+ unbound = false; 
+ break;
+ }
+ }
+ if( unbound )
+ 	this->_ers.push_back( er );
+ else
+ 	delete er.action, er.action = NULL;
+     // 销毁我们新构造的这个act内存区域
+ }
+```
+
+```c++
+ // 解除事件绑定，删除事件响应者对象
+ template< typename Responsor, typename Action >
+ void Unbind( Responsor * actor, Action action )
+ {
+ Action * act = new Action( action );
+ EventResponsor<EventAction> er( (Empty*)actor, (EventAction*)act );
+ for( EventIterator it = this->_ers.begin(); it != this->_ers.end(); ++it )
+ {
+ if( *it == er ) // 找到待删除的事件响应者对象
+ {
+ delete it->action, this->_ers.erase( it ); 
+ // 把这个迭代器所指向的这个对象从向量中给擦掉
+ break;
+ }
+ }
+ delete er.action, er.action = NULL;
+ // 不管怎样，要删除新构造出来的这个act那个对象
+ }
+private:
+ EventResponsors _ers;
+// 某一个特定的事件，它有一个对应的事件响应向量，这里面包括了很多个事件响应者，每一个事件响应者都会对这个事件作出响应，只要你把那个事件响应者绑定到这个事件里来，就是插入到这个事件这个类的那个对象 EventResponsors _ers 里去
+}; // template<typename EventAction> class Event
+```
+
+现在来看怎么用它
+
+```c++
+// 定义事件委托模型
+typedef Empty EventDelegator;
+// 定义指向类成员函数的指针型ValueChanged，所以要在前面给它定义好它的类，这个类呢就是我们的事件委托者类EventDelegator
+typedef void ( EventDelegator::*ValueChanged )( int value, void * tag );
+// value就是那个值发生变化以后它的新值，tag就是一个附加的参数
+
+// 触发者
+class Trigger
+{
+public:
+ Trigger() : _value(0) { }
+ void SetValue( int value, void * tag );
+ int GetValue() { return _value; }
+public:
+ // 值变化事件，公开属性，方便在类外设定
+ Event<ValueChanged> value_changed;
+ // 当值发生变化的时候，这个value_changed这样的一个值发生变化的属性里所有的事件响应者都必须做出行动，所以这个属性我们要用Event <ValueChanged> 这样的一个事件型对它进行定义
+// 理论上这是一个属性定义为公开的不是不好嘛，但实际上为了方便我们应用，如果要严格地保持它的数据封装与信息隐藏的话，那么事实上我们最好的方案就是把它定义成protected
+private:
+ int _value;
+ // 用它来保存这个对象的一个特定的值，这个值如果发生变化它就会产生一个值发生变化的事件，也就是所谓的值变更事件
+};
+```
+
+现在来实现它最重要的一个函数SetValue()
+
+```c++
+// 每设定一个新值，它就会遍历特定事件的响应对象列表，逐一触发值变更事件（一个接着一个地调用里边事件响应者的成员函数）
+void Trigger::SetValue( int value, void * tag )
+{
+ if( _value == value )
+ 	return;
+ _value = value;
+ Event<ValueChanged>::EventResponsors ers;
+ ers = this->value_changed.GetResponsors();
+ // 如果这个向量非空，那么我们就定义一个迭代器
+ if( !ers.empty() )
+ {
+ Event<ValueChanged>::EventIterator it;
+ for( it = ers.begin(); it != ers.end(); ++it )
+ {
+ // 每找到一个事件响应者，我们就调用它的事件响应函数，响应我们这个值变更事件，循环做的就是这个事
+ // 问题是怎么调用，这是事件机制里最难的一个位置
+ ( ( it->actor )->*( *( it->action ) ) )( value, tag ); // 响应事件
+ // 现在我们得到的就是那个actor对象的指向类的成员函数的指针，我们要在这个基础上调用它的成员函数，怎么调用呢？在外面封装一个括号，这样你就可以把它当做一个普通的函数一样用了，然后我们后边传两个参数value、tag;最外面的括不能省略，里面都可以省略
+ }
+ } }
+
+// it相当于指向那个事件响应者的指针，那个事件响应者是什么，是EventResponsor，我们在这个向量里存的是EventResponsor，当然它依然是一个类模板，所以实际上存的是EventResponsor<ValueChanged>，响应这个值变更事件的事件响应者们，每一个事件响应者里有两个成员，一个actor，一个action，一个是指向响应这个行动的那个对象的指针，一个是指向指向响应行动函数的指针的指针
+// ( it->actor )->*( *( it->action ) )这才得到指向actor这个对象的那个类的成员函数的指针，严格讲起来实际上是在actor这个对象上调用指向它的类的成员函数的指针；其实这几个括号都可以不写，因为优先级很碰巧，->优先级最高，其次是“*”，再次是“->*”，
+```
+
+trigger，这是一个触发值变更事件的一个对象，当它设定它的_value值的时候，它就会产生一个值变更事件，所以SetValue负责所有事件响应者的响应行动的那个调用。
+
+接下来是actor行动者的定义
+
+```c++
+// 行动者
+class Actor
+{
+public:
+ // 侦听事件,绑定本对象的事件响应函数到侦听的事件
+ // 我们要侦听这个事件，那么这个事件由谁导致的呢，当然是触发器，我们就侦听这个trigger对象的事件，所以我们要在trigger上调用它的value_changed这个属性的Bind()成员函数，将Actor这个行动者绑定到它的那个值变更事件上，所以它需要传两个参数，一个是它自己this，第二个就是响应这个值变更事件的那个事件响应函数的入口地址
+// 把自己和响应那个事件的自己的那个成员函数绑定到触发器对象上，这样的话就把这个事件响应函数写到了那个触发器对象的事件响应列表里
+ void Listen( Trigger * trigger )
+ { trigger->value_changed.Bind( this, &Actor::OnValueChanged ); }
+ // 停止侦听，从侦听的事件中取消绑定本对象的事件响应活动
+ void Unlisten( Trigger * trigger )
+ { trigger->value_changed.Unbind( this, &Actor::OnValueChanged ); }
+ // 值变更事件的响应函数
+ void OnValueChanged( int value, void * tag )
+ { cout << reinterpret_cast<char*>(tag) << value << "." << endl; 
+  // 附加参数void * tag传的是什么呢，传的就是额外的字符串信息，所以我们这里要把它转换成char *
+ }
+};
+```
+
+接下来主函数：
+
+```c++
+int main()
+{
+ const char * s = "Now the value is ";
+ Trigger t;
+ Actor a1, a2;
+ a1.Listen( &t );
+ a2.Listen( &t );
+ cout << "Listening..." << endl;
+ t.SetValue( 10, reinterpret_cast<void*>( const_cast<char*>(s) ) );
+ // s字符串先做一次常量转型然后再做一次复诠转型，把它转成哑型指针作为附加参数传进去，虽然很麻烦，但是这是最科学最安全的方法，
+ a2.Unlisten( &t );
+ // a2这个对象将从t这个对象的事件响应者列表中被删除
+ cout << "Listening again..." << endl;
+ t.SetValue( 20, reinterpret_cast<void*>( const_cast<char*>(s) ) );
+ return 0;
+}
+
+```
+
+事件机制一定要掌握，尤其是指向类的成员函数的指针的用法，在一些复杂的程序架构里，没有它是很难实现的。
+
+## 十二.Linux系统编程基础
+
+### 1.程序执行环境
+
+#### 参数列表
+
+Linux命令行规范
+
+\- **短参数：以单横开头，后跟单一字符，例：ls -h**
+
+\- **长参数：以双横开头，后跟字符串，例：ls --help**
+
+补充：
+
+> ## 短参数（一个字母）[#](https://www.cnblogs.com/liuawen/p/12854043.html#857190276)
+>
+> 最常用的参数形式就是一个短横线后接一个字母。格式例如：
+>
+> ```bash
+> command -a
+> ```
+>
+> 如果我们要一次加好几个短参数，可以用空格隔开，例如：
+>
+> ```bash
+> command -a -b -C -c
+> ```
+>
+> 多个短参数也可以合并在一起，例如上面的命令等价于：
+>
+> ```bash
+> command -abCc
+> ```
+>
+> 请注意：参数的字母的大小写是有区别的，大写的 C 和小写的 c 通常表示不同意思。
+>
+> `ls`命令没有返回任何信息，不一定就说明当前目录下什么也没有，有可能当前目录只包含隐藏文件。
+>
+> ## 长参数（多个字母）[#](https://www.cnblogs.com/liuawen/p/12854043.html#3234783514)
+>
+> 短参数是以一个短横线`-`开始，而长参数是以两个短横线`--`开始的。格式例如：
+>
+> ```zsh
+> command --parameter
+> ```
+>
+> 如果有多个长参数`-- --`，是不能像多个短参数那样合并写的。我们只能以空格隔开写，格式例如：
+>
+> ```zsh
+> command --parameter1 --parameter2
+> ```
+>
+> 我们也可以组合使用短参数和长参数，格式例如：
+>
+> ```zsh
+> command -paTc --parameter1 --parameter2
+> ```
+>
+> 有时候，同一个意义的参数有短参数和长参数两种形式，效果是一样的，可以任选哪一种。比如`ls -a` 和 `ls --all`是一个作用的，都是列出当前目录下的所有文件，包括隐藏文件什么`.` `..`的。
+>
+> 要`ls --all`哦 ，`ls -al`是列出当前目录下的所有文件的详细信息包括隐藏文件，也可写作  ls -a  -l     或ls --all -l。
+>
+> ```bash
+> ls-all 
+> linux没有这个命令，估计是自己写的脚本或者别名，
+> 例如 alias ls-all='ls --all'
+> ll 是个别名，通过which ll，可以看出：alias ll='ls -l --color=auto'
+> ```
+>
+> 不是所有的Linux命令都遵循以上的规则，例如：
+>
+> ```bash
+> find -type d -mindepth 2
+> find命令的参数：
+> -type    b/d/c/p/l/f      
+> #查是块设备、目录、字符设备、管道、符号链接、普通文件
+> -depth                       
+> #使查找在进入子目录前先行查找完本目录
+> -mindepth 2，个人理解是最少查找到2级子目录
+> ```
+>
+> 
+
+**程序访问参数列表的方法**
+
+首先，main()函数的那个参数，它其实是可以带两个参数的。
+
+\- 主函数的参数argc和argv（这两个参数其实就表达了Linux命令行里后面带的那些附加的参数）
+
+\- 程序接受命令行的输入参数，并解释之（我们在程序中就可以通过分析argc、argv这两个参数来获取命令行里提供的那些参数的列表）
+
+```c++
+编写程序，输出命令行参数
+#include <iostream>
+using namespace std;
+int main( int argc, char* argv[] )
+{
+ // argc 表达main函数的参数有几个，这个参数包含命令本身，所以命令本身是它的第0个参数
+ // 这些参数存在argv里，argv是一个字符串数组，每一个字符串都是以“\0”结尾的；在所有的这些字符串都结尾以后，再用一个“\0”来结尾，表达它的全部字符串的结束
+ cout << "The program name is " << argv[0] << "." << endl;
+ if( argc > 1 )
+ {
+ cout << "With " << argc - 1 << " args as follows:" << endl;
+ for( int i = 1; i < argc; ++i )
+ cout << argv[i] << endl;
+ }
+ else
+ cout << "With " << argc - 1 << " arguments." << endl;
+ return 0;
+}
+```
+
+
+
+#### 环境变量
+
+#### 程序退出码
+
+#### 系统调用错误处理
+
+#### 资源管理
+
+#### 系统日志
+
+#### 用户信息
 
