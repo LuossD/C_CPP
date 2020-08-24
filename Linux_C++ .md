@@ -1,4 +1,4 @@
-# 
+# 基于Linuxs的C++
 
 ---记录老师展开讲的内容，附加网上看的一些
 
@@ -7542,6 +7542,7 @@ int main( int argc, char* argv[] )
 {
  // argc 表达main函数的参数有几个，这个参数包含命令本身，所以命令本身是它的第0个参数
  // 这些参数存在argv里，argv是一个字符串数组，每一个字符串都是以“\0”结尾的；在所有的这些字符串都结尾以后，再用一个“\0”来结尾，表达它的全部字符串的结束
+ // argc = 1，说明只有命令本身，它后面没有其它参数了
  cout << "The program name is " << argv[0] << "." << endl;
  if( argc > 1 )
  {
@@ -7555,17 +7556,464 @@ int main( int argc, char* argv[] )
 }
 ```
 
+那么我们怎么在程序中分析我们的参数列表呢？**Linux操作系统为我们定义了一个结构体，这个结构体的名字叫option。使用它就可以分析Linux命令在程序执行过程中所提供的那些参数**。这个结构体定义在“getopt.h”这个头文件里。
 
+**选项数组的定义**
+
+- 结构体类型option：系统已定义，直接使用即可
+
+```c++
+// 头文件：“getopt.h”
+// option包括了四个字段
+struct option
+{
+ // 选项长名称
+ const char * name;
+ // 该选项是否具有附加参数；0：无；1：有；2：可选（也许有也许没有）
+ int has_arg;
+ // 指向整数，用于保存val值，有时候需要用它，有时候不需要，设为0
+ int * flag;
+ // 选项短名称
+ int val;
+};
+```
+
+分析Linux命令行参数列表的那个函数，名字叫getopt_long()。
+
+函数getopt_long()
+- 函数原型：int getopt_long( int argc, char * 
+  const * argv, const char * short_options, const
+  struct option * long_options, int * long_index );
+
+  长选项它是一个指向option结构体的指针
+
+  **最后那个参数用来表达的就是它那个长选项在那个选项数组里边的对应的索引**
+
+- 调用时**每一次它会分析出Linux命令行里边的一个参数**，如果参数是合法有效的，它就会返回那个参数所对应的短选项那个字符，**不存在时返回 -1** 
+- 如果在参数列表中提供的是长选项，那么它的第五个参数就会输出那个长选项在长选项数组中的索引，这样的话，你就能够查找到它对应的**短（应该是长**，老师讲错了感觉）选项的名称和其它附加信息。
+
+**参数处理方法**
+
+- 使用循环处理所有参数
+
+- 如果遇到错误选项，输出错误消息并终止程序执行
+- 处理附加参数时，**用全局变量optarg来获取它那个附加参数的基地址**
+- 完成所有处理后，全局变量optind存储首个**非可选参数的索引**
+
+**编写程序，接受如下三个选项并执行正确操作**
+
+```bash
+ -h / --help：显示程序的帮助信息并退出
+ -o filename / --output filename：指定文件名
+ -v / --verbose：输出复杂信息，缺省情况下这些复杂信息我们是不输出的，如果你设定了这个开关，那么在程序运行过程中就会输出复杂信息，这样就能帮助你调试你的程序代码
+```
+
+```c++
+#include <iostream>
+#include <cstdlib>
+// 在C++中也可以使用#include <stdlib.h>，因为C++兼容了C语言中的操作。不过一般更推荐使用C++风格的头文件，即#include <cstdlib>。cstdlib实现了stdlib.h中的所有功能，不过是按照C++的方式写的，所以与C++语言可以更好的配合。
+#include <getopt.h>
+using namespace std;
+const char * program_name; // 存储这个程序的实际名字
+
+// 输出程序用法
+void OutputInfo( ostream & os, int exit_code ) {
+ os << "Usage: " << program_name << " options [filename]" << endl;
+ os << " -h --help: Display this usage information." << endl;
+ os << " -o --output filename: Write output to file." << endl;
+ os << " -v --verbose: Print verbose messages." << endl;
+ exit( exit_code );
+}
+```
+
+```c++
+int main( int argc, char* argv[] )
+{
+ // 全部短选项的合并字符串，“:”表示带有附加参数
+ const char * const short_opts = "ho:v";
+ const struct option long_opts[] =
+ {
+ // 0表示没有附加参数，1表示有附加参数
+ { "help", 0, NULL, 'h' },
+ { "output", 1, NULL, 'o' },
+ { "verbose", 0, NULL, 'v' },
+ { NULL, 0, NULL, 0 }
+ // 用来表达这个长选项数组结束了
+ };
+ // 参数指定的输出文件名
+ const char * output_filename = NULL;
+ // 是否显示复杂信息
+ int verbose = 0;
+ // 保存程序名
+ program_name = argv[0];
+ // 如果为长选项，第五个参数输出该选项在长选项数组中的索引
+ int opt = getopt_long( argc, argv, short_opts, long_opts, NULL );
+ // 一次只能处理一个，返回的就是对应那个option那个选项，那个选项处理的是第一个，然后根据它的选项的返回值看它是不是-1，如果是 -1 就说明处理完了，如果不是我们就要一个接着一个地去处理
+while( opt != -1 ) {
+ 	switch( opt ) {
+ 	case 'h': // “-h”或“--help”
+ 		OutputInfo( cout, 0 );
+ 	case 'o': // “-o”或“--output”，附加参数由optarg提供
+ 		output_filename = optarg; break;
+ 	case 'v': // “-v”或“--verbose”
+ 		verbose = 1; 
+         break;
+ 	case '?': // 用户输入了无效参数
+ 		OutputInfo( cerr, 1 );
+ 	case -1: // 处理完毕
+ 		break;
+ 	default: // 未知错误
+ 		abort();
+ }
+ opt = getopt_long( argc, argv, short_opts, long_opts, NULL );
+ }
+ return 0;
+}
+
+```
 
 #### 环境变量
 
+典型Linux环境变量
+- USER：你的用户名
+- HOME：你的主目录
+- PATH：分号分隔的Linux查找命令的目录列表
+
+shell处理
+- shell编程时查看环境变量：echo $USER
+- 设置新的环境变量：EDITOR=emacs; export 
+EDITOR或export EDITOR=emacs
+
+**环境变量内部定义格式：VARIABLE=value**
+
+​		使用getenv()函数返回**环境变量的值**
+
+事实上，linux全部的环境变量都是使用全局变量environ保存起来的，可以直接使用。
+
+```c++
+#include <iostream>
+using namespace std;
+// 在实际访问和操作环境变量的时候，你就应该导入这个变量
+extern char ** environ;
+// 和argv性质是一样的
+int main()
+{
+ char ** var;
+ // 一个字符串，一个字符串地区处理它
+ for( var = environ; *var != NULL; ++var )
+ 	cout << *var << endl;
+ return 0;
+}
+```
+
+**编写客户端程序，在用户未指定服务器名时使用缺省服务器名称**
+
+```c++
+#include <iostream>
+#include <cstdlib>
+int main ()
+{
+ // 理论上，当这个服务器运行的时候，它会提供一个环境变量SERVER_NAME，getenv这个函数区查询这个服务器的名字，查询到的结果就传给server_name，如果server_name被赋值了，说明它定义了，它定义了的话我们直接就用，如果没查到就使用缺省的名字
+// getenv()这个函数用变量的名字作为一个字符串传进去查询，它得到的结果就是它那个值所对应的字符串
+ char * server_name = getenv( "SERVER_NAME" );
+ if( !server_name )
+ // SERVER_NAME环境变量未设置，使用缺省值
+ 	server_name = "server.yours.com";
+ cout << "accessing server" << server_name << endl;
+ // ……
+ return 0;
+}
+```
+
 #### 程序退出码
+
+ 每一个程序在运行结束的时候它都有一个退出码，对于程序来讲，退出码就是它结束时传递给操作系统的那个整型数据。
+
+**程序：结束时传递给操作系统的整型数据**
+
+- 实际上是main()函数的返回值 
+- 其他函数也可以调用exit()函数返回特定退出码 （但有的时候因为我们程序main()函数没结束而是提前终止的，所以调用exit()的时候它也会将退出码传给我们的操作系统，就在main函数之外，其它函数都可以调用exit()，在程序流程出现异常的时候，返回一个退出码给操作系统）
+- 退出码的变量名称经常为exit_code（不用这个也可以，用最好了）
+- **应仔细设计程序退出码，确保它们能够区分不同错误**（0表示有错误，非0表示有错误，正确的路只有一条，错误的路有很多，要分清它到底是因为什么样的错误才退出的，所以不同的错误理论上应该给出不同的错误码并且写成一个帮助手册）
+
+操作系统：响应程序退出码，如果必要，执行后续处理，有时就是简单地传给下一个程序，让下一个程序能够查询到就可以了（大部分时候操作系统是不关心你程序的退出码的）
+
+- shell编程时查看上一次退出码的命令：echo $?
 
 #### 系统调用错误处理
 
+在进行系统编程的时候，你可能需要频繁地进行系统调用，系统调用就有可能导致问题，因为涉及到操作系统的核心概念，所以它产生的问题是非常非常复杂的，所有的这些系统调用，它产生的错误都应该被处理，因为它们大部分的时候都涉及到了资源的访问，**系统调用本身就是访问系统资源的主要手段**。
+
+**实现逻辑**
+
+\- C程序使用断言，C++程序使用断言或异常处理机制（使用后者比前者更高级一些，**尤其涉及到类库的架构的时候，使用异常处理机制其实是更自然的选择**）
+
+两个主要问题
+- 系统调用：访问系统资源的手段
+- 系统调用失败原因：资源不足；因权限不足而被阻塞；调
+用参数无效，如无效内存地址或文件描述符；被外部事件
+中断；不可预计的外部原因（所以为了保持你的程序健壮性，显然你必须处理这些错误）
+- 资源管理：已分配资源必须在任何情况下都能正确释放
+
+**Linux使用整数表示系统调用错误**
+
+- 标准错误码为以“E”开头的全大写宏 
+- 宏errno（使用方法类似全局变量）：表示错误码，位于
+头文件“errno.h”中 （专门用来表达最后一次发生的那个错误的错误码）
+- 每次错误都重写该值，处理错误时必须保留其副本
+- 函数strerror()：返回宏errno**对应的错误说明字符串**，
+位于头文件“string.h”中（包含的时候应该写cstring，因为在C++里还有一个“string.h”头文件）
+
+在进行系统错误处理的时候，实际上是相当复杂的。
+
+```c++
+// 将指定文件的拥有者改为指定的用户或组；第一个参数为文件名，
+// 第二和第三个参数分别为用户id和组id，如果参数owner或group中的任意一个是-1,则对应的ID不变
+rval = chown( path, user_id, -1 );
+// 一旦成功，返回0，一旦错误，会返回-1，
+if( rval ) {
+ // 必须存储errno，因为下一次系统调用会修改该值
+ int error_code = errno;
+ // 操作不成功，chown将返回-1
+ assert( rval == -1 );
+ // assert的作用是现计算表达式 expression ，如果其值为假（即为0），那么它先向stderr打印一条出错信息，然后通过调用 abort 来终止程序运行。如果表达式不为0，则继续执行后面的语句
+ // 检查errno，进行对应处理
+ switch( error_code )
+ {
+ case EPERM: // 操作被否决
+ case EROFS: // PATH位于只读文件系统中
+ case ENAMETOOLONG: // 文件名太长
+ case ENOENT: // 文件不存在
+ case ENOTDIR: // path的某个成分不是目录
+ case EACCES: // path的某个成分不可访问
+ 	cerr << "error when trying to change the ownership of " << path;
+ 	cerr << ":“ << strerror( error_code ) << endl;
+ 	break;
+ case EFAULT: // path包含无效内存地址，有可能为bug
+ 	abort ();
+ case ENOMEM: // 核心内存不足
+ 	cerr << strerror( error_code ) << endl;
+ 	exit( 1 );
+ default: // 不可预见错误，最可能为程序bug
+ 	abort ();
+ };
+}
+```
+
 #### 资源管理
+
+**在系统调用过程中必须明确管理的资源类型**
+
+\- 内存、文件描述符、文件指针、临时文件、同步对象等等
+
+资源管理流程
+- 步骤1：分配资源
+- 步骤2：正常处理流程
+- 步骤3：如果流程失败，释放资源并退出，否则执行正常
+处理流程
+- 步骤4：释放资源
+- 步骤5：函数返回
+
+```c++
+char * ReadFromFile( const char * filename, size_t length )
+{
+ char * buffer = new char[length];
+ // 内存分配给缓冲区，这是资源
+ if( !buffer )
+ 	return NULL;
+ int fd = open( filename, O_RDONLY ); // 以只读模式打开文件，这是资源
+ if( fd == -1 ) {
+ 	delete[] buffer, buffer = NULL;
+ 	return NULL;
+ }
+ size_t bytes_read = read( fd, buffer, length );
+ if( bytes_read != length ) {
+ 	delete[] buffer, buffer = NULL;
+ 	close( fd );
+ 	return NULL;
+ }
+ close( fd );
+ return buffer;
+}
+```
 
 #### 系统日志
 
+**日志：系统或程序运行的记录**
+
+系统日志进程：syslogd/rsyslogd
+- 两者均为守护（daemon）进程，即在后台运行的进程，没
+有控制终端，也不会接收用户输入，父进程通常为init进程（即0号进程）
+- 日志文件一般为“/dev/log”，实质上是一个设备，日志信息一般保存在“/var/log/”目录下 ，目录下你可以设置日志文件的名字叫什么。
+- rsyslogd既能接收用户进程输出的日志，也能接收内核日志；
+在接收到日志信息后，会输出到特定的日志文件中；日志信
+息的分发用户可自己配置
+
+日志生成函数：syslog()
+- 头文件：“syslog.h” 
+
+- 原型：void syslog( int priority, const char * msg, … );
+
+  msg是它的日志的信息的构造，它是一个结构化的输出，就像printf()一样
+
+- 可变参数列表，用于结构化输出
+
+- priority：日志优先级，往往是一个特定的设施值（一般默认为LOG_USER）与它的日志级别的**位或** 
+
+- 日志级别：LOG_EMERG（0，系统不可用）、LOG_ALERT
+（1，报警，需立即采取行动）、LOG_CRIT（2，严重情况）、LOG_ERR（3，错误）、LOG_WARNING（4，警告）、LOG_NOTICE（5，通知）、LOG_INFO（6，信息）、LOG_DEBUG（7，调试）
+
+0级是最重要的
+
+日志打开函数：openlog()
+- 原型：void openlog( const char * ident, int logopt, int
+facility );
+- **改变syslog()函数的默认输出方式**，以进一步结构化日志内容
+- ident：标志项，指定添加到日志消息的日期和时间后的字符串
+- logopt：日志选项，用于配置syslog()函数的行为，取值为
+LOG_PID（在日志消息中包含程序PID）、LOG_CONS（如果日志不能记录至日志文件，则打印到终端）、LOG_ODELAY（延迟打开日志功能，直到第一次调用syslog()函数）、LOG_NDELAY
+（不延迟打开日志功能）的位或 
+- facility：用于修改syslog()函数的默认设施值，一般维持
+LOG_USER不变
+
+日志过滤函数：setlogmask()
+- 原型：int setlogmask( int maskpri );
+- 设置日志掩码，大于maskpri的日志级别信息被过滤
+- 返回值：设置日志掩码前的日志掩码旧值
+
+日志关闭函数：closelog()
+
+\- 原型：void closelog();
+
 #### 用户信息
+
+UID、EUID、GID和EGID
+- 每个进程拥有两个用户ID：UID（真实用户ID）和EUID
+（有效用户ID） 
+- EUID的目的：方便资源访问，**运行程序的用户拥有该程序**
+**有效用户的权限**（站在操作系统的角度上看，用于给操作系统判断某个进程是否拥有操作某个文件的权限）
+- 组与用户类似(有一个组id，还有一个有效组id)
+
+用户信息处理函数
+- 获取真实用户ID：uid_t getuid();
+- 获取有效用户ID：uid_t geteuid();
+- 获取真实组ID：gid_t getgid();
+- 获取有效组ID：gid_t getegid();
+- 设置真实用户ID：int setuid( uid_t uid );
+- 设置有效用户ID：int seteuid( uid_t uid );
+- 设置真实组ID：int setgid( gid_t gid );
+- 设置有效组ID：int setegid( gid_t gid );
+
+```c++
+程序示例
+#include <unistd.h>
+#include <stdio.h>
+int main()
+{
+ uid_t uid = getuid(), euid = geteuid();
+ printf("uid: %d; euid: %d\n", uid, euid );
+ return 0;
+}
+```
+
+```bash
+gcc main.c
+sudo chown root:root ./a.out
+# 命令格式：
+# chown [选项]... [所有者][:[组]] 文件...
+sudo chmod +s ./a.out
+# “为了方便普通用户执行一些特权命令，SUID/SGID程序允许普通用户以root身份暂时执行该程序，并在执行结束后再恢复身份。”
+# chmod u+s 就是给某个程序的所有者以suid权限，可以像root用户一样操作,g＋s设置组ID位
+
+# 这样只改变它的euid，uid不改变。
+注意：SUID只能用于可执行文件，其作用是修改EUID（有效用户id）
+```
+
+### 2.输入输出
+
+#### 标准输入输出流
+
+标准输入流：stdin/cin
+
+标准输出流：stdout/cout
+
+- 数据有缓冲，在缓冲区满、程序正常退出、流被关闭或强
+制刷新（fflush()函数）时输出
+- 等到缓冲区满后同时打印多个句号：while(1) 
+{ printf( "." ); sleep(1); }
+
+标准错误流：stderr/cerr
+- 数据无缓冲，直接输出
+- 每秒打印一个句号：while(1) { fprintf( stderr, "." ); 
+sleep(1); }
+
+理论上，标准输出流是有缓冲的，而标准错误流是无缓冲的。
+
+#### 文件描述符
+
+文件描述符的意义与目的：在程序中代表文件（用文件描述符来表达底层的资源概念）
+- 内核为每个进程维护一个文件打开记录表，文件描述符为
+该文件在文件记录表中的索引值
+
+文件描述符为非负整数，范围从0至OPEN_MAX
+- 不同操作系统可能具有不同范围，可以同时打开的文件数
+  目不同
+
+  (在linux系统中所有的东西都是文件，都可以使用文件描述符来描述它)
+
+文件描述符的缺点
+- 非UNIX/Linux操作系统可能没有文件描述符概念，**跨平**
+**台编程时**建议使用C/C++标准库函数和文件流类（写程序时**尽量不用文件描述符**）
+
+预定义的标准输入输出流的文件描述符
+
+- 标准输入流stdin：STDIN_FILENO（0） 
+- 标准输出流stdout：STDOUT_FILENO（1） 
+- 标准错误流stderr：STDERR_FILENO（2）
+
+文件描述符的创建
+- Linux中凡物皆文件，操作系统使用统一方式管理和维护系统资源
+- （打开一个系统资源，它就会为它创建一个文件描述符）所以很多函数它的系统调用都会打开一个文件描述符，通过打开文件或设备的方式创建文件描述符（很多这样的函数都会做这个事情，它都会返回一个文件描述符，一旦你打开一个文件或设备，它就会创建一个文件描述符给你，然后你就可以用这个文件描述符来操纵那个文件或设备了，所以文件描述符在Linux底层设计的时候是非常非常重要的）
+
+#### I/O函数
+
+基本与高级I/O函数
+- 打开关闭函数open()和close()：前者头文件“fcntl.h”，
+  后者头文件“unistd.h” 
+
+- 读写函数read()和write()：头文件“unistd.h” 
+
+- 读写函数readv()和writev()：头文件“sys/uio.h” 
+
+  （分散读、集中写函数）
+
+- 文件发送函数sendfile()：头文件“sys/sendfile.h” 
+
+- 数据移动函数splice()：头文件“fcntl.h” 
+
+- 数据移动函数tee()：头文件“fcntl.h” 
+
+- 文件控制函数fcntl()：头文件“fcntl.h”
+
+打开文件函数open()
+- 原型：int open( const char * filename, int oflag, … );
+- 目的：打开filename指定的文件，返回其文件描述符，oflag
+为文件打开标志
+- 若文件支持定位，读取时从当前文件偏移量处开始
+- 文件打开标志：O_RDONLY（只读）、 O_WRONLY（只
+写）、 O_RDWR（读写）等
+
+关闭文件函数close()
+- 原型：int close( int fd );
+- 目的：关闭文件描述符fd所代表的文件
+
+读函数read()
+- 原型：ssize_t read( int fd, void * buf, size_t count );
+- 目的：将count个字节的数据从文件描述符fd所代表的文件中读入buf所指向的缓冲区
+- 若文件支持定位，读取时从当前文件偏移量处开始
+- 返回值：读取的字节数，0表示文件结尾，失败时返回-1并设置errno
+
+
+
+#### 临时文件
 
