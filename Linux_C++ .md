@@ -8553,7 +8553,7 @@ target ... : prerequisites ...
 # 这样的一个描述构造一个规则，下面可能再构造另外一个规则，它会形成一个规则链
 ```
 
-makefile文件规则
+#### makefile文件规则
 
 - makefile文件由一系列规则构成
 - 规则的目的：建构目标的先决条件是什么以及如何建构目标（target就是我们的**建构目标**， prerequisites就是我们的建构先决条件，commands就是它的建构命令）
@@ -8656,4 +8656,187 @@ clean :
 > 5.ALL
 >
 > Makefile 文件默认只生成第一个目标文件即完成编译，但是我们可以通过 “ALL” 指定需要生成的目标文件。
+
+#### makefile文件语法
+
+和C不一样，很多时候它和shell那个编程规范非常相似
+
+行解析：命令按行解析
+- 命令行的行首字符为Tab键，其他行的行首字符不得为Tab键，但可以使用多个空格缩进（注释可以写空格）
+
+换行：命令太长时，行尾用“\”换行
+
+注释：行首字符为“#”的文本行
+
+make在执行makefile的时候它会首先输出makefile里边的那行命令的全部内容，然后才会执行命令，当你不需要显示那行命令的内容的时候，就可以关闭命令的回显
+
+关闭回显：在行首字符后和命令前添加“@” 
+
+- 未关闭回显时，make会首先回显（打印）命令，然后执行该命令（一般不关闭命令回显）
+
+- 通常仅在注释和纯显示的echo命令前使用此功能
+
+makefile本身可以包含其它的文件。
+
+include filename：包含其他文件
+
+- 处理模式与C/C++类似
+- 行首加“-”：忽略文件包含错误（-include，如果不加有错误make就会停）
+
+通配符
+- “ * ”（任意数目的任意字符），例如“*.c”表示所有C源文件
+- “？”（任意一个字符），例如“?.c”表示所有单字符文件名的C源文件 
+- “[abc]”（存在括号内的某个字符），例如“lib[abc].c”表示第四个字符为“a”、“b”或“c” 
+- “[0-9]”（存在该集合中的某个字符），例如“lib[0-9].c”表示第四
+个字符为0～9之间的数字（含数字0和9） 
+- “ [  ^abc ] ”（存在非括号内的某个字符），例如“lib[ ^abc ].c”表示第四个字符不是“a”、“b”或“c”
+
+变 量 
+
+- 基本变量定义： var_name = value（有的shell里定义变量=前后不能加空格，这里是可以加空格的）
+
+- $(变量名称)：引用变量（美元符号与小括号中间无多余空格）；
+
+- shell变量用“ $$ ”，
+
+  例如“@echo $$HOME” 
+
+- 变量在使用时展开，**形式上类似宏替换**
+
+- 变量的使用场合：目标、先决条件、命令、还可以用它定义新的变量
+
+事实上，不管是变量的名字还是变量的值，make在解释这个makefile的时候，**都是把它当做字符串来处理的**。
+
+内置变量
+
+- $(CC)：当前使用的编译器；
+- $(MAKE)：当前使用的make工具
+
+自动变量
+- $@：当前目标；
+- $<：当前目标的首个先决条件；
+- $?：比目标更新的所有先决条件；
+- $^：所有先决条件；
+- $(@D)和$(@F)：$@的目录名和文件名；
+- $(<D)和$(<F)：$<的目录名和文件名
+
+```bash
+# makefile样本
+objs = main.o library.o
+prog : $(objs)
+	$(CC) -o prog $(objs)
+	@echo "Constructed…"
+main.o : main.c library.h
+	$(CC) -c main.c
+library.o : library.c library.h
+	$(CC) -c library.c
+.PHONY : clean
+clean :
+	rm -f prog $(objs) *～
+	# 以“~”结尾的备份文件也被删除了，只留下三个文件，main.c、library.c、library.h
+```
+
+变量定义格式
+- var_name = value：在执行时扩展，允许递归，可以使用
+后续代码中出现的值（这里变量的值会跟着value的值发生变化的）
+- var_name := value：在定义时扩展，不允许递归，使用右
+侧的现值，不能使用后续代码中出现的值 (在这个现值后来发生改变的时候，变量的内容不会变)
+- var_name ?= value：只有在该变量为空时才设置值，否则
+维持原值 
+- var_name += value：将值追加到变量的尾部；若变量未
+定义，则“+=”自动解释为“=”（如果你原来使用“：=”来对它进行赋值的，那么“+=”的话就意味着使用“：=”把它追加过去）；若变量已定义，则“+=”继承上次的操作符，并追加新值
+
+**多行变量**
+
+```bash
+define var_name
+# 变量值是底下这几行命令
+	@echo "One"
+	@echo "Two"
+endef
+# define和endef本身不是命令，所以前面不能用Tab键
+```
+
+- define和endef行首字符不能为Tab键，对齐时可使用空格
+- 引用：$(var_name) 
+- 多行变量主要用于定义命令包，平时很少用，使用多行变量要小心，展开时有可能导致脚本错误（因为这个东西它可能是在不同的shell下运行的，所以得到的结果互相之间可能没关系，展开以后脚本是非常有可能导致错误的）
+
+目标变量：类似C/C++局部变量，仅对本目标规则链有效
+
+- target … : var_name = value：定义目标变量
+
+> cc 是 Unix系统的 C Compiler，一个是古老的 C 编译器。而 Linux 下 cc 一般是一个符号连接，指向 gcc；可以通过 $ ls -l /usr/bin/cc 来简单察看，该变量是 make 程序的内建变量，默认指向 gcc 。 cc 符号链接和变量存在的意义在于源码的移植性，可以方便的用 gcc 来编译老的用cc编译的Unix软件，甚至连 makefile 都不用改在，而且也便于 Linux 程序在 Unix下 编译。
+>
+> CC 则一般是 makefile 里面的一个名字标签，即宏定义，表示采用的是什么编译器（如：CC = gcc）。
+
+在编写makefile的时候可以使用静态模式用百分号来进行通配
+
+静态模式：以“%”通配
+- 目的：用于处理模式相同的多目标，简化脚本代码
+
+  ```bash
+  target ... : target-pattern : prerequisites ...
+  [Tab键]commands
+  ```
+
+- 示例：每个目标的文件以“.o”结尾，先决文件为对应的“.c”
+
+```bash
+objs = main.o library.o
+$(objs) : %.o : %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+main.o : main.c
+	$(CC) -c $(CFLAGS) main.c -o main.o
+library.o : library.c
+	$(CC) -c $(CFLAGS) library.c -o library.o
+# 生成两个目标文件都以“.o”结尾，对应的先决条件的文件名字都是“.c”结尾，所以我们就可以把它统一成一行
+```
+
+条件判断基本格式
+
+```bash
+conditional-directive conditional-directive
+	text-if-true              text-if-true
+endif 				 else
+						text-if-false
+					endif
+# 左边或者右边
+```
+
+可用的条件判断
+- 判断两个参数是否相等：ifeq (arg1,arg2)、 ifeq 'arg1' 'arg2'、 ifeq "arg1" "arg2"
+- 判断两个参数是否不等：ifneq（具体格式与ifeq相同）
+- 判断某个变量是否已定义：ifdef variable_name
+- 判断某个变量是否未定义：ifndef variable_name
+
+循环：可以在makefile中使用shell循环
+
+```bash
+rulefor :
+	for filename in `echo $(objs)`; \
+	do \
+		rm -f $$filename; \
+	done
+```
+
+注意事项
+- 循环为shell循环，为保证多行命令在同一个进程下执行，必须合并成单条命令并在行尾添加分行标识
+- 可以使用反引号（``)执行命令，所获得的结果集合可以作为循环的处理集合
+- filename本身是shell变量，需使用“$$”引用
+
+函数：像变量一样使用“$()”标识
+
+- $(function arg1,arg2,…)：函数调用，函数名为function，后跟逗号分隔的参数列表，函数参数之间只有逗号没有空格
+- $(subst from,to,text) ：make的字符串替换函数，将text中的from字符串替换为to，返回替换后的字符串
+
+```bash
+comma := , #定义一个逗号变量
+# 定义空值，不是空格
+empty :=
+# 定义空格
+space := $(empty) $(empty) # 两个空值变量包着的一个空白，$(empty)就什么东西也不生成，但中间那个空格会保留下来
+foo := a b c
+# 将“a b c”替换为“a,b,c”
+bar := $(subst $(space),$(comma),$(foo))
+```
 
