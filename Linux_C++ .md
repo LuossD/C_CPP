@@ -8666,11 +8666,11 @@ clean :
 
 换行：命令太长时，行尾用“\”换行
 
-注释：行首字符为“#”的文本行
+**注释：行首字符为“#”的文本行**
 
 make在执行makefile的时候它会首先输出makefile里边的那行命令的全部内容，然后才会执行命令，当你不需要显示那行命令的内容的时候，就可以关闭命令的回显
 
-关闭回显：在行首字符后和命令前添加“@” 
+关闭回显：在行首字符后和**命令前添加“@”** 
 
 - 未关闭回显时，make会首先回显（打印）命令，然后执行该命令（一般不关闭命令回显）
 
@@ -8839,4 +8839,471 @@ foo := a b c
 # 将“a b c”替换为“a,b,c”
 bar := $(subst $(space),$(comma),$(foo))
 ```
+
+## 十三.进程编程
+
+### 1.进程基本概念
+
+进程（process）的定义
+- 进程是描述**程序执行过程和资源共享**的基本单位（你分配资源，你执行这个程序，那么你共享资源，所有的控制和管理这个程序运行的那些东西，都需要使用一个特殊的数据结构，来存储它、保存它、维护它、管理它，这个东西就叫进程）
+- 主要目的：**控制和协调程序的执行**
+
+进程相关函数
+- 用户与组ID函数：参阅上一讲 
+- 创建进程：system()、fork()、exec()
+- 终止进程：kill()
+- 等待进程终止：wait()、waitpid()
+
+进程组
+- 定义：由一个或多个相关联的进程组成，目的是为了进行作业控制
+- 进程组的主要特征：信号可以发送给进程组中的所有进程，并使该进程组中的所有进程终止、停止或继续运行
+- **每个进程都属于某个进程组**
+
+也就是说你把这些相关的进程合并成一个组，然后就可以以一个组的模式对它进行控制和管理。在Linux中，对管理同类型的进程是非常方便的一个策略。
+
+进程组函数
+- 获取进程组ID：pid_t getpgid( pid_t pid );
+  - 返回pid进程的进程组ID；若pid为0，则返回当前进程的进程组ID；出错时返回-1，并设errno值 
+- 设置进程组ID：int setpgid( pid_t pid, pig_t pgid );
+  - 若pid为0，则使用调用者PID；若pgid为0，则将pid进程的进程PID设为进程组ID；成功时返回0，出错时返回-1，并设errno值
+
+会话（session） 
+
+- 会话为一个或多个进程组的集合，包括登录用户的全部活动，并具有一个控制终端
+
+- 登录进程为每个用户创建一个会话，用户登录shell进程成为会话首领，会话首领的那个进程PID就会变成这个会话的ID
+- **非会话首领进程通过调用setsid()函数创建新会话，并成为首领**（注意这个函数只能是非会话首领才能创建；你原来就是组长，你还想创建一个新的组，再自认组长，这个模式在Linux系统下就不太妥当，不能身兼数职）
+
+进程组函数
+- 获取会话ID：pid_t getsid( pid_t pid );
+  - 返回pid进程的会话ID；若pid为0，则返回当前进程的会话ID；成功时返回会话ID，出错时返回-1，并设errno值  
+- 设置会话ID：pid_t setsid();
+  - 成功时返回新创建的会话ID，出错时返回-1，并设errno值
+
+### 2.信号
+
+它是一种重要的进程间通讯机制。
+
+- 信号是发送给进程的特殊异步消息
+- 当进程接收到信息时**立即处理**，此时并不需要完成当前函数
+调用甚至当前代码行 （不一定能做完就会被中断，特别注意这点，中断这些当前函数运行）
+- Linux系统中有多种信号，各具有不同的意义；系统以数字
+标识不同的信号，程序中使用的时候，一般使用它的名字对应的宏名字来标记它来使用它
+
+系统信号
+- 缺省处理逻辑：终止进程，生成内核转储文件
+- 使用“kill –l”命令可查看操作系统支持的信号列表，不同
+的系统可能有所不同
+
+```
+信 号 值 缺省动作 含 义
+SIGHUP 1 终止进程 终端的挂断或进程死亡
+SIGINT 2 终止进程 来自键盘的中断信号，通常为Ctrl+C
+SIGQUIT 3 内核转储 来自键盘的离开信号
+SIGILL 4 内核转储 非法指令
+SIGTRAP 5 内核转储 断点或其他陷阱指令，用于调试器
+SIGABRT 6 内核转储 来自abort的异常信号
+SIGBUS 7 内核转储 总线错误（内存访问错误）
+SIGFPE 8 内核转储 浮点异常
+SIGKILL 9 终止进程 杀死进程
+SIGUSR1 10 终止进程 用户自定义信号1
+SIGSEGV 11 内核转储 段非法错误（内存访问无效）
+SIGUSR2 12 终止进程 用户自定义信号2
+SIGPIPE 13 终止进程 管道损坏：向一个没有读进程的管道写数据
+SIGALRM 14 终止进程 计时器定时信号
+SIGTERM 15 终止进程 进程终止信号
+SIGSTKFLT 16 终止进程 协处理器堆栈错误（不使用）
+SIGCHLD 17 忽略 子进程停止或终止
+SIGCONT 18 忽略 如果停止，继续执行
+SIGSTOP 19 停止进程 非来自终端的停止信号
+SIGTSTP 20 停止进程 来自终端的停止信号，通常为Ctrl+Z
+SIGTTIN 21 停止进程 后台进程读终端
+SIGTTOU 22 停止进程 后台进程写终端
+SIGURG 23 忽略 有紧急数据到达套接字信号
+SIGXCPU 24 内核转储 超过CPU时限
+SIGXFSZ 25 内核转储 超过文件长度限制
+SIGVTALRM 26 终止进程 虚拟计时器定时信号（进程占用CPU时间）
+SIGPROF 27 终止进程 计时器定时信号（程序占用CPU时间和系统调度时间）
+SIGWINCH 28 忽略 窗口大小改变
+SIGIO 29 终止进程 描述符上可以进行I/O操作
+SIGPWR 30 终止进程 电力故障
+SIGSYS 31 内核转储 非法系统调用
+```
+
+进程间发送的信号
+
+- SIGTERM、SIGKILL：终止进程信号，前者是请求，请求你停下来吧（接收信号的进程可以忽略之），后者是强制
+- SIGUSR1、SIGUSR2：用户自定义信号，可用于它们来做自己的处理，向进程发送命令
+
+信号处理
+- 进程接收到信号后，根据信号配置进行处理
+- 缺省配置：在程序没有处理时，确定信号该如何处理（如果你定义了自己的信号处理例程，那么它就不会按照缺省的那个处理过程去对它进行处理）
+- 程序处理信号的方式：按照信号处理例程里所提供的那个函数指针类型定义一个函数，然后调用
+
+sigaction()函数：设置信号配置
+- 原型：int sigaction( int signum, const struct 
+sigaction * act, struct sigaction * oldact );
+- signum为信号编号，act和oldact分别为指向信号结构体struct sigaction的指针，前者为新配置，后者为需要保存的老配置（因为每一个信号对应的处理例程它原先就有一个，有的是缺省的，有的可能是你原先设定的，现在你想为这个信号设定一个新的处理例程，那么你就把新的处理例程给它设置进去，但是原先那个你得保存起来，你可能把这个信号处理例程处理完以后，要恢复成原来那个缺省的处理模式或者原先你设置的那个处理模式）
+
+sigaction其实又是函数又是结构体，为了区分它，所以在结构体前面我总是写struct，绝不省略哪怕我写的是C++代码，表示它是结构体，它不是函数，要能区分它，就这个意思。
+
+这个给信号结构体特别重要，**我们处理信号的时候一定要操作的就是这个信号结构体**。要非常了解！
+
+信号结构体struct sigaction
+- **最重要的成员为sa_handler**，其取值为SIG_DFL（使用信
+  号缺省配置）、SIG_IGN（忽略该信号）或指向信号处理
+  例程的函数指针（以信号编号为参数，无返回值）
+
+  sa_handler用来表达这个对应的信号它的处理例程---那个函数指针是什么，你定义了一个信号处理例程，那么你就把它的入口地址传给sa_handler就可以了。
+
+注意：因为早期Linux在实现的时候，没有C++，它用的是C代码，所以这个信号处理例程这个函数是C函数，写C++代码时要特别小心传的是一个C函数的一个函数指针，不是C++的函数更不是类的成员函数。
+
+> C＋＋的函数名在编译的时候会重新命名，把参数的类型，个数加到名字，以支持的重载，一般编译器，C语言写的函数，名字并不参加重载重命名
+>
+> 举个例子：
+> 函数void fun(int a, int b);
+> C＋＋的编译器会把函数大致编译成 _fun_int_int 的形式;
+> 而C编译器则会编译成 _fun， 是不带参数的
+>
+> 但用户具体调用而言就没有太大的区别
+
+处理信号时的注意事项
+- 信号是异步操作，当处理信号时，主程序非常脆弱
+- 信号处理例程应尽可能短小，太长的话非常容易导致整个程序错误，它甚至有可能会被新信号所中断，（那它就没被处理完，那肯定不行）
+- 尽量不要在信号处理例程中实施I/O操作（因为I/O操作在很多情况下是长而复杂的），也不要频繁调用系统函数或库函数
+- 在信号处理例程中进行复杂的赋值操作也是危险的，它可能不
+是**原子操作**（就是说它本身可能会被中断的，进行复杂的赋值，就有可能导致我们赋值了一部分，然后它被中断了，然后剩下一部分数据就没有被赋值，没有意义，这个数据的一致性就没办法保证）
+- 如果需要赋值，使用sig_atomic_t类型的全局变量，然后赋值这个全局量（在Linux中等价于int，亦即允许整数或指针赋值（32位64位都可以），更大尺寸数据不允许，你必须保证那个处理的过程中不会被中断，否则就是有问题的）
+
+> 补充：原子操作
+>
+> 原子操作（atomic operation）指的是由多步操作组成的一个操作。如果该操作不能原子地执行，则要么执行完所有步骤，要么一步也不执行，不可能只执行所有步骤的一个子集。
+>
+> 现代操作系统中，一般都提供了原子操作来实现一些同步操作，所谓原子操作，也就是一个独立而不可分割的操作。在单核环境中，一般的意义下原子操作中线程不会被切换，线程切换要么在原子操作之前，要么在原子操作完成之后。更广泛的意义下原子操作是指一系列必须整体完成的操作步骤，如果任何一步操作没有完成，那么所有完成的步骤都必须回滚，这样就可以保证要么所有操作步骤都未完成，要么所有操作步骤都被完成。
+>
+> 例如在单核系统里，单个的机器指令可以看成是原子操作（如果有编译器优化、乱序执行等情况除外）；在多核系统中，单个的机器指令就不是原子操作，因为多核系统里是多指令流并行运行的，一个核在执行一个指令时，其他核同时执行的指令有可能操作同一块内存区域，从而出现数据竞争现象。多核系统中的原子操作通常使用内存栅障（memory barrier）来实现，即一个CPU核在执行原子操作时，其他CPU核必须停止对内存操作或者不对指定的内存进行操作，这样才能避免数据竞争问题。
+>
+> 在C++11之前，C++标准中并没有对原子操作进行规定。vs和gcc编译器提供了原子操作的api。
+
+```c++
+#include <signal.h> // 处理信号的头文件
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <iostream>
+sig_atomic_t sigusr1_count = 0;
+extern "C" { void OnSigUsr1( int signal_number ) { ++sigusr1_count; } }
+int main ()
+{
+ std::cout << "pid: " << (int)getpid() << std::endl;
+ struct sigaction sa;
+ memset( &sa, 0, sizeof(sa) ); // 把它的内存全部清零
+ sa.sa_handler = &OnSigUsr1; // 处理例程的入口地址赋值给它，这个就设定了sigaction()的基本函数处理例程，它的信号处理例程就被你设定好了
+ sigaction( SIGUSR1, &sa, NULL ); // 把sa挂到SIGUSR1这个信号上，只要完成sigaciton()这个函数调用，我们的信号处理例程OnSigUsr1()这个函数就会被挂接到SIGUSR1这个信号上
+// 当你在程序运行过程中，触发了一个SIGUSR1信号之后，这个信号处理例程就会被调用
+ sleep( 100 ); // 在终端中输入kill –s SIGUSR1 pid，信号计数器将递增
+ std::cout << "SIGUSR1 counts: " << sigusr1_count << std::endl;
+ return 0;
+}
+```
+
+### 3.进程管理
+
+#### 进程创建
+
+system()函数：用于在程序中执行一条命令
+- 原型：int system( const char * cmd );
+
+- 在Bourne shell中，系统会创建一个子进程运行被调命令；返
+  回值为shell的退出状态；如果shell不能运行，返回127；如
+  果发生其他错误，返回-1 
+
+- 示例：int ret_val = system( "ls -l /" );
+
+  把根目录列一下目录，以一个列表的形式详细地列出来，把结果返回给ret_val，这个结果是shell做完了以后的结果，不是列的实际目录呈现的那个数据，
+
+在创建进程的时候，最重要的是下面这个函数，fork()。
+
+fork()函数：创建当前进程的副本作为子进程
+- 原型： pid_t fork();
+- 返回值是一个整数，为0（新创建的子进程），返回值非0的时候，尤其是大于0的时候，说明它是父进程（为啥呀，因为它返回的是子进程的ID，子进程又没有调用fork()创建孙子进程，对不对，它哪有子进程ID，子进程ID只有父进程才具有，所以在子进程内部它返回的那个值是0，在父进程的时候看到的那个返回值是子进程创建出来的那个PID）；返回值一个给子进程用的，一个父进程用的，通过fork的返回值就可以做到，下面的if-else，一段代码在父进程里执行，一段代码在子进程里执行。
+
+这个函数特别特殊，因为它一次调用返回两个整数，它把当前进程拷贝一份形成一个子进程，像什么呢，它像细胞的分裂，一个是原先的进程，一个是新的进程。你在一个进程上调用一个fork()，就会创建一个子进程，**这个子进程所使用到的所有东西都和父进程是一模一样的**
+
+```c++
+使用fork()函数创建进程副本
+#include <iostream>
+#include <sys/types.h>
+#include <unistd.h>
+using namespace std;
+int main ()
+{
+ cout << "the main program process ID is " << (int)getpid() << endl;
+ pid_t child_pid = fork();
+ // 一个新的进程就产生出来了
+ if( child_pid != 0 )
+ {
+ cout << "this is the parent process, with id " << (int)getpid() << endl;
+ cout << "the child’s process ID is " << (int)child_pid << endl;
+ }
+ else
+ 	cout << "this is the child process, with id " << (int)getpid() <<endl;
+ return 0;
+}
+// 这个程序没有考虑到错误处理问题，是有问题的
+```
+
+这是一个非常精巧的资源消耗量非常少的创建子进程的模式，两个进程一模一样，但是fork以后就可以执行不同的代码了。这是早期Unix给出的实现策略，现在回过头来看，它虽然轻巧，但是很多时候它给我们创建进程的模式不够灵活，你只能创建当前进程的副本。
+
+我们创建一个子进程干嘛呢？早期最重要的一个工作就是在创建的子进程里边，执行特定的命令，使用exec()函数来执行这个命令。
+
+```c++
+exec()函数簇原型
+- int execl( const char * path, const char * arg, … );
+- int execlp( const char * file, const char * arg, … );
+- int execle( const char * path, const char * arg, …, char * const envp[] );
+- int execv( const char * path, char * const argv[] );
+- int execvp( const char * file, char * const argv[] );
+- int execvpe( const char * file, char * const argv[], char * const envp[] );
+```
+
+exec()函数说明
+- 函数名称中包含字母“p”（execvp、execlp）：**接受程序名作为参数**，在当前执行路径中按程序名查找；不包含字母“p”的，必须提供程序的完整路径
+- 函数名称中包含字母“v”（execv、 execvp、execve）：
+接受以NULL结尾的字符串数组格式的参数列表
+- 函数名称中包含字母“l”（execl、 execlp、execle） ：接受C格式的可变参数列表
+- 函数名称中包含字母“e”（execve、execle） ：接受一个附加的环境参数列表，参数格式为NULL结尾的字符串数组，且字符串的格式为“VARIABLE=value”
+
+```c++
+基本模式：在程序中调用fork()创建一个子进程，然后调用
+exec()在子进程中执行命令
+#include <iostream>
+#include <cstdlib>
+#include <sys/types.h>
+#include <unistd.h>
+int spawn( char * program, char ** args );
+int main ()
+{
+ char * args[] = { "ls", "-l", "/", NULL };
+ // 字符串数组，最后有一个NULL别忘了
+ spawn( "ls", args );
+ cout << "Done!\n";
+ return 0;
+}
+```
+
+```c++
+// 创建一个子进程运行新程序
+// program为程序名，arg_list为程序的参数列表；返回值为子进程id
+int spawn( char * program, char ** args ) {
+ pid_t child_pid = fork(); // 复制进程,创建子进程
+ if( child_pid != 0 ) // 此为父进程
+ 	return child_pid;
+ else // 此为子进程
+ {
+ execvp( program, args ); // 执行程序，按路径查找
+ // 只有发生错误时，该函数才返回
+ std::cerr << "Error occurred when executing execvp.\n";
+ abort ();
+ } }
+```
+
+#### 进程调度
+
+进程调度策略：先进先出（先来的进程先被调度），时间片轮转，普通调度，批调度，高优先级抢先（把进程分为特定的优先级，优先级高的先做，低优先级在做，当一个高优先级的进程到达，那么就抢先，把低优先级的那个进程从CPU里给踢出来不让它做了）
+
+- 子进程与父进程的调度没有固定顺序；不能假设子进程一定会在父进程之后执行，也不能假设子进程一定会在父进程之前结束（如果你没有设它的进程调度顺序，没有去做进程间的同步，那么你就没有办法对子进程和父进程的执行顺序做任何的假定，都有可能先做，都有可能先做完，注意，先做不一定先做完）
+
+进程调度策略函数：头文件“sched.h” 
+
+- 获取进程调度策略：int sched_getscheduler( pid_t pid );
+
+- 设置进程调度策略：int sched_setscheduler( pid_t pid, int policy, 
+const struct sched_param * sp );
+- 获取进程调度参数：int sched_getparam( pid_t pid, struct 
+sched_param * sp );
+- 设置进程调度参数：int sched_setparam( pid_t pid, const struct 
+sched_param * sp );
+
+进程优先级调整：头文件“sys/time.h”和“sys/resource.h” 
+
+- 改变进程优先级：int nice( int inc );（头文件“unistd.h”） 
+- 获取进程优先级：int getpriority( int which, int who );
+
+- 设置进程优先级：int setpriority( int which, int who, int prio );
+
+处理器亲和性：头文件“sched.h” 
+
+- 获取进程的处理器亲和性：int sched_getaffinity( pid_t pid, size_t
+  cpusetsize, cpu_set_t * mask );
+
+- 设置进程的处理器亲和性：int sched_setaffinity( pid_t pid, size_t
+cpusetsize, cpu_set_t * mask );
+
+处理器亲和性指的是这个进程它倾向于第几号CPU上面去做，你可以预先对它进行设定，比如你有4颗CPU，或者是1颗CPU里有4个核心，那么它标定的时候，就是CPU0、CPU1、CPU2、CPU3。那么你这个进程创建出来以后，你想运行，你说这个进程优先选择1号CPU去做，这个就叫处理器的亲和性。
+
+#### 进程终止
+
+终止进程函数：kill()
+- 头文件“sys/types.h”和“signal.h” 
+- 原型： int kill( pid_t pid, int sig );
+- 函数参数：pid为子进程ID，sig应为进程终止信号SIGTERM
+
+等待进程结束函数：wait()
+- 原型：pid_t wait( int * status ); pid_t waitpid( pid_t pid, int * 
+  status, int options );（第二个函数等待特定的pid号的那个进程结束）
+
+- （当你调用wait的时候，因为这个函数的调用要等待另外一个进程结束，所以这个进程本身它就做不下去了，这个进程就会被阻塞，一直到你等待的那个进程结束了，它才会继续做下去）阻塞主调进程，直到一个子进程结束
+
+  wait单参数版本主要是用来等待子进程结束，waitpid呢就等待一个特定的进程结束
+
+- WEXITSTATUS宏：查看子进程的退出码 
+
+- WIFEXITED宏：确定子进程的退出状态是正常退出，还是未处理信号导致的意外死亡
+
+```c++
+#include <iostream>
+#include <cstdlib>
+#include <sys/types.h>
+#include <sys/wait.h> // 必须包含此头文件，否则与wait共用体冲突
+#include <unistd.h>
+int spawn( char * program, char ** arg_list );
+int main ()
+{
+ char * arg_list[] = { "ls", "-l", "/", NULL };
+ spawn( "ls", arg_list );
+ int child_status;
+ wait( &child_status ); // 等待子进程结束
+ // wait这个参数不是传给wait的，是wait要传出来的，我们要用的
+ if( WIFEXITED( child_status ) ) // 判断子进程是否正常退出
+ 	cout << "Exited normally with " << WEXITSTATUS(child_status) <<endl;
+ else
+ 	cout << "Exited abnormally." << endl;
+ 	cout << "Done!\n";
+ return 0;
+}
+```
+
+#### 僵尸进程
+
+子进程已结束，但父进程未调用wait()函数等待
+
+- 子进程已终止，但父进程并没有等待它，这就意味着那个子进程本身没有被正确清除，成为僵尸进程，它有些特定的资源就没有被释放，包括子进程的状态就没有被处理，所以很多时候它实际上是对资源的一种浪费。
+
+清除子进程的手段
+- 父进程调用wait()函数可确保子进程被清除（等子进程做完，把它的状态取出来，它就死掉了，所有的东西都被我们清除了）
+- 即使子进程在父进程调用wait()函数前已死亡（成为僵尸），
+其退出状态也可以被抽取出来，然后被清除
+- 未清除的子进程自动被init进程收养，会变成init进程的子进程，这不就增加了init的负担嘛
+
+```c++
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+int main ()
+{
+ pid_t child_pid;
+ child_pid = fork();
+ if( child_pid > 0 ) // 父进程，速度睡眠六十秒
+ 	sleep( 60 );
+ else // 子进程，立即退出
+ 	exit( 0 );
+    // 一构造出来就退出，什么也不做
+    // 结果子进程不就变成僵尸了嘛，父进程没处理它啊，你fork一个子进程出来，然后你啥也不管你睡觉去了，那子进程呢，它exit()退出了，你也没等它，结果不就是子进程变成僵尸了嘛
+ return 0;
+}
+```
+
+#### 子进程异步清除
+
+如果你把wait()写在父进程里，那如果子进程没有结束父进程不就被阻塞了嘛，它自己的事情就做不了了，所以一个更好的策略是子进程结束的时候，触发一个终止信号，然后父进程收到这个信号处理这个子进程的清除工作，所以最合适的方案就是子进程的异步清除。
+
+SIGCHLD信号：子进程终止时，向父进程自动发送这个信号，那么父进程就可以针对这个子进程写一个信号处理例程，完成子进程的异步清除工作。等待那叫同步了。
+
+```c++
+#include <signal.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+sig_atomic_t child_exit_status;
+extern "C" {
+void CleanUp( int sig_num ) // 信号那个值作为它的参数
+{
+ int status;
+ wait( &status ); // 等待子进程结束，清除子进程，然后把子进程的状态返回出去
+ child_exit_status = status; // 存储子进程的状态
+}}
+```
+
+```c++
+int main ()
+{
+ // 处理SIGCHLD信号
+ struct sigaction sa;
+ memset( &sa, 0, sizeof(sa) );
+ sa.sa_handler = &CleanUp; // 就把子进程发送SIGCHLD这个信号之后，我们父进程要做的事，它的信号活动给它设置好
+ sigaction( SIGCHLD, &sa, NULL );
+ // 正常处理代码在此，例如调用fork()创建子进程
+ return 0;
+}
+```
+
+#### 守护进程
+
+它是在后台默默的做事情，没有输入也没有输出。所以创建守护进程的方式是非常非常特殊的。
+
+创建守护进程的步骤
+- 创建新进程：新进程将成为未来的守护进程
+- 守护进程的父进程要退出：这样能够保证祖父进程明确地确认到父进程已结束，且知道守护进程本身不是组长进程（只有非组长它才能创建新的会话啊）
+- 守护进程创建新进程组和新会话（成为新进程组的组长和会话的首领）：并成为两者的首进程，此时刚创建的新会话还没有关联控制终端，所以它是没有输入输出的
+- 改变工作目录：守护进程一般随系统启动，工作目录不应继续
+使用创建这个守护进程的那个进程的工作目录（继承的工作目录），那个进程可能是另外一个目录，那个目录在文件系统中，甚至有可能被管理员给卸载掉，所以你守护进程随系统启动的时候，可能没用它，用它就可能导致问题，所以我们往往会改变它的工作目录，一般改变到根目录下，或者在根目录下其它的某个固定的子目录下，保证它不会被卸载的地方
+- 重设文件权限掩码：不需要继承文件权限掩码
+- 关闭所有文件描述符：不需要继承任何打开的文件描述符
+- 标准流重定向到/dev/null（三个流全都定向到哑终端）
+
+总体上应该按上面的顺序来，虽然其中有些顺序可以颠倒
+
+创建完了，你可以根用户权限去运行它，它就能够在后台默默地替你做事情了，你还可以设定它随系统一起启动。
+
+```c++
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <linux/fs.h>
+int main()
+{
+ pid_t pid = fork();
+ if( pid == -1 ) return -1;
+ else if( pid != 0 ) exit( EXIT_SUCCESS );
+ // 这个时候它是在父进程里，父进程直接退出
+    
+ // 子进程
+ if( setsid() == -1 ) return -2;
+ // 设置工作目录
+ if( chdir( "/" ) == -1 ) return -3;
+ // 重设文件权限掩码
+ umask( 0 );
+ // 关闭文件描述符
+ for( int i = 0; i < 3; i++ ) close( i );
+ // 因为我们这里没打开任何文件描述符，它实际上只打开了三个标准流，所以这里用循环执行三次就完了，文件描述符0、1、2
+ // 重定向标准流
+ open( "/dev/null", O_RDWR ); // stdin
+ // 打开它就会创建一个新的文件描述符，它优先选择最小的文件描述符，最小的是0号文件描述符，因为那三个都关闭了，事实上什么文件描述符都没用，所以打开哑终端的时候它自动地将使用0号文件描述符，0号对应的是标准输入流，这就意味着标准输入流被挂到了哑终端上，所有的数据输入都从哑终端来，所以什么都来不了
+ dup( 0 ); // stdout 
+ // 文件描述符的复制操作，复制0号文件描述符，产生一个新的文件描述符，放哪呢？优先选择最小的那个文件描述符，现在最小的是1，也就是把0号文件描述符复制到1号文件描述符那里面去了，现在它就把标准输出流也挂到了哑终端上，所有的输出信息全都仍到哑终端，也就是什么内容都不再显示
+ dup( 0 ); // stderr
+ // 守护进程的实际工作代码在此
+ return 0;
+}
+```
+
+守护进程创建函数daemon()
+- 实现了前述功能，减轻编写守护进程的负担
+- 原型：int daemon( int nochdir, int noclose );
+- 参数：若nochdir非0（true），不更改工作目录；若noclose非0，不关闭所有打开的文件描述符；一般两参数均设为0 
+- 返回值：成功时返回0，失败时返回-1，并设置errno值（去查errno的值就知道发生了什么错误）
 
