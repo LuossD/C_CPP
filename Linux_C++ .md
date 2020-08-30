@@ -9857,3 +9857,1003 @@ IPC_RMID、IPC_INFO、MSG_INFO、MSG_STAT；buf
 - 父子进程之间应该具有传递信息的通道，如管道、共享内存、
 消息队列等，也可能需要同步机制
 
+## 十四.线程编程
+
+### 1.线程基本概念
+
+线程的定义
+- 线程是比进程更小的程序执行单位
+- **多个线程可共享进程的全局数据**，也可使用专有数据
+
+一个进程包括很多个线程，那么这些线程就共享这个进程的全局堆，每个线程因为要执行自己的那个函数调用，所以线程都有自己独立的栈，但共享进程的堆。
+
+Linux线程支持史
+- 1996年，LinuxThreads：基本符合POSIX标准，但
+  效率低下，问题多多
+- 2003年，内核2.6：提供线程支持库NPTL（Native 
+  POSIX Thread Library for Linux），也就是我们俗称的pthread，Linux的多线程编程才逐渐引起重视
+
+内核线程
+- 操作系统内核支持多线程调度与执行（那么它内部就会有所谓的内核线程）
+- 内核线程使用资源较少，仅包括内核栈和上下文切换时
+需要的保存寄存器内容的空间
+
+轻量级进程（lightweight process，LWP） 
+
+此前Linux的调度都是以进程位单位的，调度的开销非常大，所以后来为了降低进程调度的开销，它提出了一个轻量级进程的概念
+
+- 由内核支持的独立调度单元，调度开销小于普通的进程
+
+- 系统支持多个轻量级进程同时运行，每个都与特定的内
+核线程相关联，这样才能被调度
+
+用户线程
+
+真正在开发的时候，我们要写的是用户线程
+
+- 建立在用户空间的多个用户级线程，映射到轻量级进程
+后调度执行，然后在轻量级进程里再映射到内核线程里去调度执行
+- 用户线程在用户空间创建、同步、维护、管理、销毁，开销较低
+- 每个线程具有独特的ID
+
+以上三个是从不同角度讨论操作系统内部是如何进行线程调度和管理的
+
+使用说明
+- 线程功能不属于C/C++标准库，链接时需用-pthread选项
+- 线程功能属于C++11标准库，可用C++11提供的thread类定义线程对象，C++11标准库同时提供基本的线程同步机制
+
+进程与线程的比较
+- 线程空间不独立，有问题的线程会影响其他线程；进
+程空间独立，有问题的进程一般不会影响其他进程（影响的概率相当小）
+- 创建进程需要额外的性能开销，而创建线程的开销它实际上是小的，和进程的创建开销相比要小的多，调度的时候也一样开销要小得多
+- 线程用于开发细颗粒度并行性，进程用于开发粗颗粒度并行性（虽然很多事情用多进程来做可以，多线程来做可以，但是从实现这个角度来讲，要开发细粒度并行性的话，用多线程来做实际上要比用多进程来做效果要好上那么一点）
+- 线程容易共享数据，进程（地址空间完全独立）共享数据必须使用进程间通讯机制
+
+### 2.线程管理
+
+#### 线程创建
+
+```c++
+线程创建函数
+- 头文件：“pthread.h” - 原型：int pthread_create( pthread_t * thread, const pthread_attr_t * attr, void * ( *start_routine )( void * ), void * arg );
+// 第三个参数是一个函数指针（老师这么说，严格来讲我觉得应该是函数指针函数），回调函数参数嘛，它就是我们的线程那个执行的函数，它会指向那个线程函数；第四个就是一个附加参数arg
+```
+
+线程创建流程
+- 定义指向pthread_t对象的指针对象，**pthread_t对象用于存储新线程的ID**
+- 定义指向线程属性pthread_attr_t对象的指针对象；线程属性对象控制线程与程序其他部分（可能是其他线程）的交互；如果你不需要设定这个线程的属性对象，那么这个指针你可以传NULL，则使用缺省属性构造新线程
+
+- 定义指向线程函数的指针对象，使其指向固定格式的线程函数（你不定义直接传那个线程执行函数的那个地址过来也可以）
+- 实现线程函数；线程函数的参数和返回值均为哑型指针；需要传递多个参数时，那么把这些参数打包成形成一个结构单个void*型的指针对象，然后传它的地址；如果返回值也有很多个，也可以把这些返回值打包，把他的地址传出去
+- 线程退出时使用返回值将数据传递给主调线程；多个结果同样可以打包传递
+
+线程创建说明
+- pthread_create()函数在线程创建完毕后立即返回，它并不等待线程结束
+- 原线程与新线程如何执行与调度有关，程序不得依赖线程先后执行的关系（不能对操作系统的调度做任何预先的假定）
+- 可以使用同步机制确定线程的先后执行关系
+
+线程退出方式
+- 线程函数结束执行
+- 调用pthread_exit()函数显式结束
+- 被其他线程撤销
+
+```c++
+#include <pthread.h>
+#include <iostream>
+void * PrintAs( void * unused )
+{
+ while( true ) std::cerr << 'a';
+ return NULL;
+}
+void * PrintZs( void * unused )
+{
+ while( true ) std::cerr << 'z';
+ return NULL;
+}
+int main()
+{
+ pthread_t thread_id;
+ pthread_create( &thread_id, NULL, &PrintAs, NULL );//子线程负责打印a
+ PrintZs( NULL );// 主函数负责打印z
+ return 0;
+}
+```
+
+#### 线程函数参数与返回值
+
+那我要想向这个线程里传递一个参数怎么办？
+
+```c++
+#include <pthread.h>
+#include <iostream>
+class InfoPrinted
+{
+public:
+ InfoPrinted( char c, int n ) : _c(c), _n(n) { }
+ void Show() const { for( int i = 0; i < _n; i++ ) std::cerr << _c; }
+private:
+ char _c;// 要打印的字符
+ int _n;// 打印多少遍
+};
+// 线程函数
+void * PrintInfo( void * info )
+{
+ // 对象的基地址通过制作info传进来了
+ InfoPrinted * p = reinterpret_cast<InfoPrinted *>( info );
+ if( p ) p->Show();
+ return NULL;
+}
+```
+
+```c++
+// 注意：本程序大部分情况下不会输出任何结果
+int main()
+{
+ pthread_t tid1, tid2;
+ // 动态构造InfoPrinted类的对象，作为线程函数参数传递给线程tid1
+ // 输出100个‘a’
+ InfoPrinted * p = new InfoPrinted( 'a', 100 );
+ pthread_create( &tid1, NULL, &PrintInfo, reinterpret_cast<void *>( p ) );// 第四个参数就是我们要传给那个线程函数的参数列表中的那个附加参数，这就是那个回调函数的参数啊
+ // 构造InfoPrinted类的动态对象，作为线程函数参数传递给线程tid2
+ // 输出100个‘z’
+ InfoPrinted * q = new InfoPrinted( 'z', 100 );
+ pthread_create( &tid2, NULL, &PrintInfo, reinterpret_cast<void *>( q ) );
+ // 使用本注释行替换上述线程，可以看到输出结果，可能仅有部分输出
+ // PrintInfo( reinterpret_cast<void *>( q ) );
+ return 0;
+}
+```
+
+存在的问题：一般不会产生任何输出
+- 子线程需要使用主线程的数据，如果主线程结束，子线程想调度，它用啥数据呢？数据没了，它用不了了 ，所以它访问不到那些数据
+
+解决方案：使用pthread_join()函数，等待子线程结束，就是保证主线程在子线程之后才结束
+
+- 原型：int pthread_join( pthread_t thread, void ** retval );
+- 参数：thread为**pthread_t类型的线程ID**；retval接收线程返回值，不需要接收返回值时传递NULL
+
+```c++
+// 注意：无法确定两个线程的执行顺序，多次输出结果可能不同
+int main()
+{
+ pthread_t tid1, tid2;
+ InfoPrinted * p = new InfoPrinted( 'a', 100 );
+ pthread_create( &tid1, NULL, &PrintInfo, reinterpret_cast<void *>( p ) );
+ InfoPrinted * q = new InfoPrinted( 'z', 100 );
+ pthread_create( &tid2, NULL, &PrintInfo, reinterpret_cast<void *>( q ) );
+ // 等待子线程结束
+ pthread_join( tid1, NULL );
+ pthread_join( tid2, NULL );
+ return 0;
+}
+```
+
+线程函数返回值
+
+```c++
+#include <pthread.h>
+#include <cmath>
+#include <iostream>
+void * IsPrime( void * n )
+{
+ unsigned int p = reinterpret_cast<unsigned int>( n );
+ unsigned int i = 3u, t = (unsigned int)sqrt( p ) + 1u;
+ if( p == 2u )
+ 	return reinterpret_cast<void *>( true );
+ if( p % 2u == 0u )
+ 	return reinterpret_cast<void *>( false );
+ while( i <= t )
+ {
+ if( p % i == 0u )
+ 	return reinterpret_cast<void *>( false );
+ i += 2u;
+ }
+ return reinterpret_cast<void *>( true );
+}
+```
+
+```c++
+// 使用g++ main.cpp –pthread –lm –fpermissive编译
+// 以防止编译器将void*到int的转型当作错误
+int main()
+{
+ pthread_t tids[8];
+ bool primalities[8];
+ int i;
+ // 创建8个线程
+ for( i = 0; i < 8; i++ )
+ 	pthread_create( &tids[i], NULL, &IsPrime, 		       reinterpret_cast<void *>( i+2 ) );
+ // 等待8个线程都做完，做完之后这个数据就会被写到素性数组里
+ for( i = 0; i < 8; i++ )
+ 	pthread_join( tids[i], reinterpret_cast<void **>(     &primalities[i] ) );
+    // 第二个参数传的就是那个线程返回值要放的地方的地址，它接受的是一个哑型指针的指针，严格讲起来它是指向哑型指针的指针
+ for( i = 0; i < 8; i++ )
+ 	std::cout << primalities[i] << " ";
+ std::cout << std::endl;
+ return 0;
+}
+```
+
+#### 线程ID
+
+```c++
+pthread_equal()函数：确认两个线程是否相同
+- 原型：int pthread_equal( pthread_t t1, pthread_t
+t2 );
+pthread_self()函数：返回当前线程的ID
+- 原型：pthread_t pthread_self();
+- 示例：
+if( !pthread_equal( pthread_self(), other_tid ) ) 
+    pthread_join( other_tid, NULL );
+```
+
+#### 线程属性
+
+线程属性：精细调整线程的行为
+
+设置线程属性的流程
+- 创建pthread_attr_t类型的对象
+- 调用pthread_attr_init()函数初始化线程的缺省属性，传递指向该线程属性对象的指针
+  - 原型：int pthread_attr_init( pthread_attr_t * attr );
+- 对线程属性进行必要修改
+- 调用pthread_create()函数时传递指向线程属性对象的指针
+
+- （如果线程创建完之后，这个线程属性对象你不要了）调用pthread_attr_destroy()函数清除线程属性对象（仅仅是清除线程属性对象里边的属性设置），pthread_attr_t对象本身没有被销毁，因而可以调用pthread_attr_init()函数再次初始化
+- 原型：int pthread_attr_destroy( pthread_attr_t * attr );
+
+线程属性说明
+- 单一线程属性对象可以用于创建多个线程
+- 线程创建后，继续保留线程属性对象本身并没有意义，所以大部分的时候都会销毁它
+- 对大多数Linux程序，线程最重要的属性为分离状态（detach state），其它我们很少设定
+
+线程分类
+- 可联线程（joinable thread）：缺省设置，终止时并不自动清除（类似僵尸进程，进程结束了但是它的状态并没有被取出来），主线程必须调用pthread_join()等待它结束获取其返回值，此后才能清除（joinable，你要联接它然后才能做清除工作）
+- 分离线程（detached thread）：结束时自动清除，不能调用pthread_join()进行线程同步
+- 可联线程可通过pthread_detach()函数分离，分离后这个线程
+  不能再次联接了，再也不能调用pthread_join()去等待它了
+  - 原型：int pthread_detach( pthread_t thread );
+
+所有的线程缺省的都是可联线程，你都必须调用pthread_join()去等待它结束
+
+```c++
+pthread_attr_setdetachstate()函数：设置线程分离属性
+- 原型：int pthread_attr_setdetachstate
+( pthread_attr_t * attr, int detachstate );
+- 传递线程属性对象指针和分离线程设置参数
+// 缺省情况是可联，所以如果你在创建线程的最初就把它变成一个分离线程，那么你的第二个参数就传PTHREAD_CREATE_DETACHED
+    
+pthread_attr_getdetachstate()函数：获取线程分离属性
+- 原型：int pthread_attr_getdetachstate
+( pthread_attr_t * attr, int * detachstate );
+```
+
+```c++
+#include <pthread.h>
+// 线程函数
+void * ThreadFunc( void * arg ) { ... }
+int main()
+{
+ pthread_attr_t attr;
+ pthread_t thread;
+ // 初始化线程属性
+ pthread_attr_init( &attr );
+ // 设置线程属性的分离状态
+ pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
+ // 创建线程
+ pthread_create( &thread, &attr, &ThreadFunc, NULL );
+ // 清除线程属性对象
+ pthread_attr_destroy( &attr );
+ // 无需联结该线程
+ return 0;
+}
+```
+
+#### 线程撤销
+
+pthread_cancel()函数：撤销线程
+- 原型：int pthread_cancel( pthread_t thread );
+- 已撤销的线程可以联结，且必须联结，以释放其资源(不联接好多清除工作没法做），除非其为分离线程
+
+线程撤销类型与状态
+- 异步可撤销：在其执行的任何时刻都可撤销
+- 同步可撤销：线程可撤销，但撤销操作首先进入队列排队，
+在线程执行到特定撤销点时才可撤销（所以是一种延迟的撤销）
+- 不可撤消：撤销不可撤消线程的企图被系统忽略，且没有任何消息反馈
+
+pthread_setcanceltype()函数：设置线程的撤销类型
+
+**以什么样的方式去撤销**
+
+- 原型： int pthread_setcanceltype( int type, int * oldtype );
+- 参数：type为撤销类型，oldtype用于保存原始线程撤销类型，NULL表示不保存
+- PTHREAD_CANCEL_ASYNCHRONOUS：线程异步可撤销
+- PTHREAD_CANCEL_DEFERRED：线程同步可撤销，即延迟到下一撤销点时撤销
+
+pthread_setcancelstate()函数：设置线程的撤销状态
+
+**这里是能不能够撤销**
+
+- 原型： int pthread_setcancelstate( int state, int * oldstate );
+- 第一个参数state为可撤销状态，第二个参数oldstate用于保存原始线程可撤销状态，NULL表示不保存
+- PTHREAD_CANCEL_ENABLE：线程可撤销
+- PTHREAD_CANCEL_DISABLE：线程不可撤销
+- 线程的撤销状态可多次设置
+
+pthread_testcancel()函数：设置撤销点
+- 原型：void pthread_testcancel();
+- 在线程函数中调用pthread_testcancel()函数设置撤销点 
+- 建议：周期性地设置撤销点，保证线程函数内部每隔一些代码就有一个撤销点，以保证资源能够正确释放
+
+使用撤销状态构造临界区（critical section） 
+
+- 临界区：要么全部执行，要么一条都不执行的代码段
+
+- 设置线程的撤销状态，线程一旦进入临界区，你就把它设置成不可撤销的这个模式，那么就必须等到它离开临界区（恢复它的可撤销模式之后），才可以被撤销
+
+  保证代码一定别执行或者一定不被执行
+
+```c++
+// 账户转账
+void Transfer( double * accounts, int from, int to, double amount )
+{
+ int ocs;
+ // 数据有效性检查代码在此，确保转账操作合法有效
+ // 将线程设置为不可撤销的，进入临界区
+ pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, &ocs );
+ accounts[to] += amount;
+ accounts[from] -= amount;
+ // 恢复线程的撤销状态，离开临界区
+ pthread_setcancelstate( ocs, NULL );
+}
+```
+
+#### 线程局部存储
+
+线程局部存储（thread local storage，TLS）：用它来存储每个线程的独有数据
+
+- 线程特定数据（thread-specific data） 
+- 进程的多个线程通过全局堆共享全局数据对象
+- 每个线程拥有独立的栈
+
+如果有几个线程想要设定这个全局对象的值呢，那到底以哪一个为准呢，所以很多时候每个单独的线程都想访问自己的那个全局对象的唯一的一个副本，那么怎么保证这一点呢，这就叫线程的局部存储
+
+让线程拥有数据的独立副本：不能简单赋值或读取
+- pthread_key_create()函数：为线程特定数据创建一个键，把它和线程局部存储的数据对象关联起来，接下来就可以通过键值对这个数据对象进行控制和管理
+- 参数：第一个为指向pthread_key_t类型变量的指针（每个线程都可以使用它访问自己的独立数据副本）；第二个参数为指向线程清除函数的指针，如果不存在，传递NULL
+- pthread_setspecific()函数：设置对应键的值 
+- pthread_getspecific()函数：读取对应键的值
+
+```c++
+#include <pthread.h>
+#include <stdio.h>
+static pthread_key_t tlk; // 关联线程日志文件指针的键
+// 每个线程都有自己独立的日志文件；但是这个日志文件本身作为一个对象在我们程序内部一开始是独一的，当你创建很多线程的时候显然不能访问那个独一的文件，因为每个特定的文件那个文件的名字应该是和线程的id是相关的，所以我们就需要使用线程局部存储
+void WriteToThreadLog( const char * msg ) {
+ FILE * fp = ( FILE * )pthread_getspecific( tlk );
+ fprintf( fp, "%d: %s\n", (int)pthread_self(), msg );
+}
+void CloseThreadLog( void * fp ) {
+ fclose( ( FILE * )fp );
+}
+void * ThreadFunc( void * args ) {
+ char filename[255];
+ FILE * fp;
+ // 生成与线程ID配套的日志文件名
+ sprintf( filename, "thread%d.log", (int)pthread_self() );
+ fp = fopen( filename, "w" );
+  // 设置线程日志文件指针与键的局部存储关联
+ pthread_setspecific( tlk, fp );
+ // 向日志中写入数据，不同的线程会写入不同的文件
+ WriteToThreadLog( "Thread starting..." );
+ return NULL;
+}
+int main()
+{
+ int i;
+ pthread_t threads[8];
+ 
+ // 每一个线程都可以使用tlk（talk）这个键值来访问它自己所独有的那个文件指针对象
+ // 要在线程的创建之前完成这个线程的局部存储键值的创建
+ // 创建键，使用CloseThreadLog()函数作为其清除程序
+ pthread_key_create( &tlk, CloseThreadLog );
+ for( i = 0; i < 8; ++i )
+ 	pthread_create( &threads[i], NULL, ThreadFunc, NULL );
+ for( i = 0; i < 8; ++i )
+ 	pthread_join( threads[i], NULL );
+ pthread_key_delete( tlk );
+ return 0;
+}
+```
+
+#### 线程清除
+
+线程清除函数：回调函数，单void*参数，无返回值
+
+- 目的：销毁线程退出或被撤销时未释放的资源
+
+pthread_cleanup_push()函数：注册线程清除函数
+- 原型： void pthread_cleanup_push( void (* routine)(void *), 
+void * arg );
+- 参数：routine为指向**线程清除函数的函数指针**，arg为传递给回
+调函数的附加数据对象
+
+pthread_cleanup_pop()函数：取消线程清除函数注册
+- 原型： void pthread_cleanup_pop( int execute );
+- 参数：整型值，非0调用回调函数释放资源（在取消注册的时候，替你完成线程最后的清除工作，你不pop，它实际上是不清除的），0不释放
+
+```c++
+#include <malloc.h>
+#include <pthread.h>
+void * AllocateBuffer( size_t size )
+{
+ return malloc( size );
+}
+void DeallocateBuffer( void * buffer )
+{
+ free( buffer );
+}
+void DoSomeWork()
+{
+ void * temp_buffer = AllocateBuffer( 1024 );
+ // 注册清除处理函数
+ pthread_cleanup_push( DeallocateBuffer, temp_buffer );
+ // 此处可以调用pthread_exit()退出线程或者撤销线程
+ // 取消注册，传递非0值，实施清除任务
+ pthread_cleanup_pop( 1 );// 取消这个函数的注册，执行那个函数，把这个线程分配的这个缓冲区给销毁
+}
+```
+
+C++的问题
+- 对象的析构函数在线程退出时可能没有机会被调用，因而线程栈上的数据未清除
+- 如何保证线程资源被正确释放？
+
+解决方法
+- 定义异常类，线程在准备退出时引发异常，然后在异常处理中退出线程执行
+- 引发异常时，C++确保析构函数被调用
+
+```c++
+#include <pthread.h>
+class EThreadExit {
+public:
+ EThreadExit( void * ret_val ) : _thread_ret_val(ret_val) { }
+ // 实际退出线程，使用对象构造时的返回值
+ void* DoThreadExit () { pthread_exit( _thread_ret_val ); }
+private:
+ void * _thread_ret_val;
+};
+void * ThreadFunc( void * arg ) {
+ try {
+ if( 线程需要立即退出 )
+ throw EThreadExit( 线程返回值 );
+ }
+ catch( const EThreadExit & e ) {
+ e.DoThreadExit(); // 执行线程实际退出动作
+ }
+ return NULL;
+}
+```
+
+### 3.线程同步机制
+
+#### 资源竞争
+
+编程任务
+- 存在一个任务队列，多个并发线程同时处理这些任务。每个线程在完成某项任务后，检查任务队列中是否有新任务。如果有，就处理该任务，并将该任务从任务队列中删除。 
+- 假设：两个线程碰巧完成各自任务，但队列中只有一个任务。 
+- 可能发生的情况：第一个线程发现任务队列非空，准备接收该任务，但没有完成全部设置。此时，操作系统碰巧中断该线程。第二个线程获得了执行，也发现任务队列非空，同样准备接收该任务，但发现已无法正确设置任务队列。 
+- 最坏情况：第一个线程已经从队列中摘取了任务，但是还没有将任务队列设置为空，第二个线程对任务队列的访问导致段错误，系统崩溃。
+
+```c++
+// 有问题的程序代码
+#include <list>
+struct Job;
+std::list<Job *> job_queue;
+// 线程函数
+void * DequeueJob( void * arg ) {
+ if( !job_queue.empty() )
+ {
+ Job * job = job_queue.front();// 取到队列的队首元
+ job_queue.pop_front();
+ ProcessJob( job );
+ delete job, job = NULL;
+ }
+ return NULL;
+}
+// 这个任务队列里，只有一个任务，两个线程去竞争访问的时候，这段程序代码就会出问题，单线程的程序，这一切都很正常，但是多线程编程的时候就需要特别注意
+```
+
+#### 互斥
+
+第一种解决方案就是互斥
+
+互斥（mutex）定义与性质：MUTial EXclusion
+- 就是相互独占锁，与二元信号量类似
+- 一次只有一个线程可以锁定一个数据对象，并访问
+- 只有该线程释放锁定，其他线程才能访问该数据对象
+
+pthread_mutex_init()函数：初始化互斥
+- 原型：int pthread_mutex_init( pthread_mutex_t * 
+mutex, const pthread_mutexattr_t * mutexattr );
+- 参数： mutex为互斥对象，mutexattr为互斥属性对象，NULL表示使用缺省属性
+- 可使用预定义宏PTHREAD_MUTEX_INITIALIZER初始化互斥
+
+```c++
+pthread_mutex_destroy()函数：销毁互斥
+- 原型：int pthread_mutex_destroy( pthread_mutex_t * mutex );
+pthread_mutex_lock()函数：互斥加锁
+- 原型：int pthread_mutex_lock( pthread_mutex_t * mutex );
+- 锁定这个互斥，获取这个互斥的访问
+- 如果无法锁定，则当前线程就会被阻塞，一直到它能够锁定
+pthread_mutex_trylock()函数：互斥加锁
+- 原型：int pthread_mutex_trylock( pthread_mutex_t * mutex );
+- 如果无法锁定，则立即返回，不阻塞
+pthread_mutex_unlock()函数：互斥解锁
+- 原型：int pthread_mutex_unlock( pthread_mutex_t * mutex);
+```
+
+使用互斥的流程
+- 定义pthread_mutex_t类型的变量，将其地址作为第一个参数传给pthread_mutex_init()函数；初始化函数只需调用一次 
+- 锁定或尝试锁定该互斥；获得访问权后，执行正常程序代码；
+并在执行完毕后解锁
+
+互斥属性
+- pshared属性：进程共享属性
+
+  - 取值：PTHREAD_PROCESS_SHARED（跨进程共享），
+    PTHREAD_PROCESS_PRIVATE（本进程内部共享） 
+
+  大部分时候使用第二个属性取值，就是本进程内共享，进程外不共享；大部分操作系统支持进程间共享互斥，但是很多时候因为我们做的是多线程编程，往往是一个进程的很多个线程，所以进程内共享是最常见的属性
+
+- type属性：互斥类型
+
+互斥type属性
+- PTHREAD_MUTEX_NORMAL：普通锁 
+
+  - 被某个线程锁定后，其他请求加锁的线程将等待
+
+  - 容易导致死锁 
+
+  - 解锁被其他线程锁定或已解锁的互斥，这个结果可能是无定义的，将导致不可预期的后果
+
+- PTHREAD_MUTEX_ERRORCHECK：检错锁 
+
+  - 线程对已被其他线程锁定的互斥加锁，将返回EDEADLK
+
+- PTHREAD_MUTEX_RECURSIVE：递归锁 
+
+  - 允许线程对互斥多次加锁；解锁次数必须与加锁次数匹配
+
+- PTHREAD_MUTEX_DEFAULT：默认锁 
+
+  - 实现上可能为上述三种之一，它并不是单独的一个选择，缺省的时候大部分系统使用的是第一个
+
+```c++
+互斥属性函数
+- 初始化互斥属性对象：
+int pthread_mutexattr_init( pthread_mutexatt_t * attr );
+- 销毁互斥属性对象：
+int pthread_mutexattr_destroy( pthread_mutexatt_t * attr );
+- 获取pshared属性：int pthread_mutexattr_getpshared( const pthread_mutex_t * mutex, int * pshared );
+- 设置pshared属性：
+int pthread_mutexattr_setpshared( pthread_mutex_t * mutex, int pshared );
+- 获取type属性：int pthread_mutexattr_gettype( const
+pthread_mutex_t * mutex, int * type );
+- 设置type属性：int pthread_mutexattr_settype( pthread_mutex_t * mutex, int type );
+```
+
+...
+
+```c++
+// 作业入队时需要加锁
+void * EnqueueJob( void * arg ) {
+ Job * job = reinterpret_cast< Job * >( arg );
+ pthread_mutex_lock( &job_queue_mutex ); // 锁定互斥
+ job_queue.push_back( job );
+ // 入队时也输出线程ID和作业内容信息
+ std::cout << "Thread " << (int)pthread_self();
+ std::cout << " enqueueing (" << job->x << ", " << job->y << ")\n";
+ pthread_mutex_unlock( &job_queue_mutex ); // 解锁，这个动作应该放在push_back()之后，让我们这个临界区内部的代码尽可能的短
+ return NULL;
+}
+```
+
+#### 死锁
+
+死锁：资源被竞争占用，且无法释放
+
+处理策略：更改互斥类型
+
+- 创建互斥属性pthread_mutexattr_t型的对象
+- 调用pthread_mutexattr_init()函数初始化互斥属性对象，
+传递其地址
+- 调用pthread_mutexattr_setkind_np()函数设置互斥类型，
+函数第一个参数为指向互斥属性对象的指针，第二个参数为
+PTHREAD_MUTEX_RECURSIVE_NP（递归互斥）或
+PTHREAD_MUTEX_ERRORCHECK_NP（检错互斥）
+- 调用pthread_mutexattr_destroy()函数销毁互斥属性对象
+
+#### 信号量
+
+问题：如何确保任务队列中有任务可以做？
+- 如果队列中没有任务，线程可能退出，后续任务出现时，没有
+线程可以执行它
+
+POSIX标准信号量：头文件“semaphore.h” 
+
+- 用于多个线程的同步操作
+
+- 操作方法比进程信号量简单
+
+初始化信号量
+- 原型：int sem_init( sem_t * sem, int pshared, unsigned 
+int value );
+- 参数：sem为信号量对象，pshared为共享属性，value为信
+号量初始值
+
+等待信号量：P操作
+- 原型：int sem_wait( sem_t * sem );
+- 原型：int sem_trywait( sem_t * sem );
+- 原型：int sem_timewait( sem_t * sem, const struct
+timespec * abs_timeout );
+- 说明： sem_wait()在无法操作时阻塞， sem_trywait()则立
+即返回，sem_timewait()与sem_wait()类似，但有时间限制，过了时间期限它就返回了
+
+发布信号量：V操作
+
+- 原型：int sem_post( sem_t * sem );
+
+销毁信号量
+
+- 原型：int sem_destroy( sem_t * sem );
+
+#### 条件变量
+
+条件变量的功能与目的
+- 互斥用于同步线程对共享数据对象的访问
+- 条件变量用于在线程间同步共享数据对象的值
+
+初始化条件变量
+- 原型：int pthread_cond_init( pthread_cond_t * cond, 
+const pthread_condattr_t * cond_attr );
+- 可使用宏PTHREAD_COND_INITIALIZER代替
+
+销毁条件变量
+
+- 原型：int pthread_cond_destroy( pthread_cond_t * cond );
+
+广播条件变量
+- 原型：int pthread_cond_broadcast( pthread_cond_t * cond );
+- **以广播方式唤醒所有等待目标条件变量的线程**
+
+（你也可以只唤醒一个）唤醒条件变量
+
+- 原型：int pthread_cond_signal( pthread_cond_t * cond );
+
+等待条件变量
+- 原型：int pthread_cond_wait( pthread_cond_t * cond, 
+pthread_mutex_t * mutex );
+- 参数：这样的条件会被很多线程所共享，所以必须使用互斥来对这个条件变量进行保护，以确保函数操作的原子性
+
+### 4.C+11线程库
+
+先省略，以后需要再学吧
+
+## 十五.网络编程
+
+### 1.Internet网络协议
+
+#### TCP/IP协议
+
+- Internet主流协议族 
+- 分层、多协议的通信体系
+
+它把整个网络实际上分成了四层
+
+数据链路层
+- 它描述了网卡接口的网络驱动程序，和数据在物理媒介上的传输的特征；不同的物理网络具有不同的电气特性，网络驱动程序本身这些实现细节对于不同的网络架构来讲肯定是不一样的，所以我们在设计数据链路层的时候通过隐藏实现细节就可以为上层协议提供一致的接口
+- 数据链路层常用协议：地址解析协议（ARP）和反向地址
+解析协议（R（reverse）ARP），实现IP地址与机器物理地址（通常为MAC地址）之间的相互转换
+
+网络层
+
+- 实现数据包的路由和转发
+- 常用协议：IP、ICMP
+  - IP协议：**逐跳发送模式**；根据数据包的目的地IP地址决定
+  数据如何发送；如果能直接发给它那就发给它，如果数据包不能直接发送至目的地，IP协议负责寻找一个合适的下一跳路由器，并将数据包交付给该路由器转发(寻找一个中间人帮它转发，中间有一个转发就称它为产生一次额外的一跳，那个转发者如果发现能够直接发送到目的地，它就直接发送，如果不行，它还得找下一个转发者，所有的数据传输都是按照这个模式去做的，那么它就是IP协议)
+  - ICMP协议：因特网控制报文协议，主要用于检测网络连接
+
+传输层
+- **为两台主机的应用程序提供端到端通信**
+- 传输层使用的主要协议：TCP、UDP
+
+- TCP（Transmission Control Protocol）：传输控制协议，为应用层提供可靠的、面向连接的、基于流的可靠服务；使用超时重发、数据确认等方式确保数据被正确发送至目的地
+
+- UDP（User Datagram Protocol）：用户数据报协议，它也是为应用层提供一个基于流的服务，但是它提供的服务是不可靠的、无连接的、简单的基于数据报的服务；不保证数据能正确发送到目的地
+
+如果是一个可靠的服务，那么你需要额外的控制和管理就多一些，不可靠的就少一点，它不可靠，所以效率就会高一些
+
+正是因为TCP协议和IP协议在因特网协议中占了最主要的地位，所以我们才把因特网用到的这个协议统称TCP/IP协议
+
+应用层
+- 应用程序逻辑实现
+- 常用协议：ping、telnet、DNS、HTTP、FTP、DHCP等
+
+#### HTTP协议
+
+它仅仅是TCP/IP协议我们整个因特网上最顶层应用层协议中的一种
+
+超文本传输协议：应用层协议
+
+主要特点
+- 支持客户/服务器模式
+- 简单快速：客户向服务器请求服务时，只需传送请求方法和路径；请求方法常用GET、HEAD、POST等，每种方法规定了客户与服务器联系的不同类型；HTTP协议简单，实现起来它的服务器程序规模小，通信速度较快 
+- 灵活：HTTP允许传输任意类型的数据对象；正在传输的类
+型由Content-Type加以标记
+
+- 无连接：无连接是指每次连接只处理一个请求；服务器处理完客户请求，并收到客户应答后，即断开连接，节省传输时间（下次你再想连接继续重新地新造一个连接，这个连接在客户请求的时候才会发生，此外的时间它是不存在的，所以它叫无连接的）
+- 无状态：无状态是指协议对于事务处理过程、它的历史没有记忆能力；没有包袱啊，所以应答较快，但是每次传输的时候数据量较大，因为它不知道你之前要了什么东西，每次都跟新的连接一样，当然传输的数据量就会大一点
+
+所有的HTTP资源都使用HTTP URL的方式去定位网络资源，也就是通过这个网址来定位对应的网络资源
+
+- ```c++
+  http://host[:port][abs_path]
+  // 协议、主机、端口、绝对路径
+  ```
+
+HTTP请求
+- 由三部分组成：请求行、消息报头、请求正文
+- 格式：Method Request-URI HTTP-Version CRLF
+- Method：请求方法，GET、POST等 
+- Request-URI：统一资源标识符
+- HTTP-Version：请求的HTTP协议版本
+- CRLF：回车换行
+
+HTTP响应
+- 由三部分组成：状态行、消息报头、响应正文
+- 状态行格式：HTTP-Version Status-Code ReasonPhrase CRLF
+- HTTP-Version：服务器HTTP协议版本
+- Status-Code：服务器返回的响应状态码 - Reason-Phrase：状态码的文本描述
+
+你必须按照这个模式去构造，因为你返回的是字节流、是字符串啊
+
+HTTP状态码
+- 状态代码有三位数字组成，首数字定义响应类别
+  - 1xx：指示信息，表示请求已接收，继续处理；2xx：成功；3xx：重定向，**要完成请求必须进行更进一步的操作**；4xx：客户端错误，请求有语法错误或请求无法实现；5xx：服务器端错误，服务器未能实现合法的请求
+
+- 常见状态代码
+- 200：OK，请求成功；
+- 400：Bad Request，请求有语法错误，不能被服务器所理解；401：Unauthorized，请求未经授权；403：Forbidden，服务器收到请求，但是拒绝提供服务；404：Not Found，请求资源不存在；
+- 500：Internal Server Error，服务器发生不可预期的错误；503：Server Unavailable，服务器不能处理客户请求
+
+### 2.套接字
+
+#### 套接字的基本概念
+
+通信类型：控制套接字如何传输和处理数据，数据以包的形式传输
+
+- 连接（connection）类型：确保所有包依序传输，如果丢包，则请求重传
+- 数据报（datagram）类型：不保证包的到达顺序，包可能丢失
+
+套接字的属性呢还有一个对应的名空间
+
+名空间：指定套接字地址格式
+
+- 如果使用的是本地名空间：那么套接字地址可能就是一个本地的普通文件名
+- 如果使用Internet名空间：套接字实际上就是对应着Internet地址和端口号（用于区分一台主机上的多个套接字）确定
+
+套接字它是以一个一致的方式处理你的本地套接字和网络套接字的通讯的。自己的一台计算机，两个进程之间，可以使用套接字进行通讯，本机通过Internet连接的另外一台计算机之间也可以使用套接字来通讯，只是对于本地的套接字来说，我们使用本地的普通文件名来标识它，两个进程就可以互相访问了；如果这两个进程是通过Internet通讯的，那么你就只能通过Internet名空间访问它，也就是说你要标定这两台计算机它们在因特网上的地址，整个套接字的地址就必须以网络模式进行标识，有地址有端口号。
+
+（套接字的通讯的）协议：确定数据如何传输，大部分情况下，我们是不关心这个协议的，因为机器会自动地替我们选择一个它认为最佳的协议模式
+
+#### 套接字函数：“sys/socket.h”
+
+我们怎么调用这些函数来实现我们进程间的通讯的模式
+
+socket()函数：创建套接字
+- 原型：int socket( int domain, int type, int protocol );
+- 参数：名空间、通信类型和协议
+- 名空间：PF_LOCAL（本地）或PF_INET（Internet） 
+- 通信类型：SOCK_STREAM（流的模式连接类型）或SOCK_DGRAM（数据报类型） 
+- 协议：传递0，让系统自动选择协议（通常为最佳协议） 
+- 返回值：套接字描述符
+
+close()函数：释放套接字
+
+- 原型：int close( int fd );
+
+connect()函数：创建两个套接字之间的连接（两个套接字要连接，要不然怎么叫套接呢，就像两个管子把它套在一块拧紧，它两个套接字数据不就可以流了嘛）
+- 客户发起此系统调用，试图与服务器建立套接字连接
+- 原型：int connect( int sockfd, const struct sockaddr * 
+addr, socklen_t addrlen );
+- 参数： sockfd为套接字文件描述符； addr为指向套接字地
+址结构体的指针（服务器地址）； addrlen为服务器地址字
+符串的长度
+- 返回值：0表示连接成功，-1表示连接失败
+
+在创建连接成功之后，你就可以调用send()这个函数发送这个数据
+
+```c++
+send()函数：发送数据
+- 原型：ssize_t send( int sockfd, const void * buf, size_t len, int flags );
+- 原型：ssize_t sendto( int sockfd, const void * buf, 
+size_t len, int flags, const struct sockaddr * dest_addr, socklen_t addrlen );
+- 原型：ssize_t sendmsg( int sockfd, const struct msghdr* msg, int flags );
+//只有在套接字处于连接状态时才可调用
+```
+
+```c++
+bind()函数：绑定服务器套接字与其地址
+- 原型：int bind( int sockfd, const struct sockaddr * addr, socklen_t addrlen );
+// 你构造一个套接字然后你要把这个套接字和这个服务器那个地址给绑定起来
+```
+
+```c++
+listen()函数：侦听客户连接
+- 原型：int listen( int sockfd, int backlog );
+- 参数：backlog指定有多少个挂起连接可以进入队列，外卖都服务器最多可以侦听多少个连接，同时处理多少个，超出该值的连接将被抛弃
+```
+
+```c++
+// 侦听到客户连接之后，服务器就可以调用accept()这个函数接受客户的连接
+accept()函数：接受连接，为该连接创建一个新的套接字，和这个客户构造一个新的连接，就把它拧紧，就像两个管子一样把它拧上
+- 原型：int accept( int sockfd, struct sockaddr * addr, 
+socklen_t * addrlen );
+- 参数：addr为指向套接字地址结构体（客户地址）的指针
+- 返回值：创建一个新的套接字，以接受客户连接，返回值为新的套接字文件描述符
+- 原先套接字文件描述符可以继续接受新连接（下一个客户的连接）
+```
+
+#### 本地套接字
+
+```c++
+// 服务器端
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+// 持续读取消息，直到套接字关闭或接收到客户发送的“quit”消息
+// 前者返回true，后者返回false，服务器随后将停止服务
+bool Serve( int client_socket ) {
+ while( true )
+ {
+ int length;
+ char * msg;
+ // 从套接字中读取文本消息的长度，返回值为0表示客户连接已关闭
+ if( read( client_socket, &length, sizeof(length) ) == 0 )
+ 	return true;
+ msg = new char[length];
+ read( client_socket, msg, length );
+ std::cout << msg << std::endl;
+ if( !strcmp( msg, "quit" ) ) 
+ { 
+  delete[] msg, msg = NULL; 
+  return false; }
+ else delete[] msg, msg = NULL;
+ } 
+}
+int main( int argc, char * const argv[] )
+{
+ const char * const socket_name = argv[1];
+ int socket_fd;
+ struct sockaddr_un name;
+ bool serving = true;
+ // 创建套接字
+ socket_fd = socket( PF_LOCAL, SOCK_STREAM, 0 );
+ // 设定服务器性质
+ name.sun_family = AF_LOCAL;
+ strcpy( name.sun_path, socket_name );
+ // 绑定套接字
+ bind( socket_fd, (struct sockaddr *)&name, SUN_LEN( &name ) );
+ // 侦听客户连接
+ listen( socket_fd, 5 );
+ // 重复接受连接，直到某个客户发出“quit”消息
+ while( serving )
+ {
+ struct sockaddr_un client_name;
+ socklen_t client_name_len;
+ int client_socket_fd;
+ // 接受客户连接请求
+ client_socket_fd = accept( socket_fd,
+ (struct sockaddr *)&client_name, &client_name_len );
+ serving = Serve( client_socket_fd ); // 服务连接请求
+ close( client_socket_fd ); // 关闭客户连接
+ }
+ close( socket_fd );
+ unlink( socket_name ); // 删除套接字文件
+ return 0;
+}
+```
+
+```c++
+// 客户端
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+void SendMsg( int socket_fd, const char * msg )
+{
+ int length = strlen( msg ) + 1;
+ write( socket_fd, &length, sizeof( length ) );
+ write( socket_fd, msg, length );
+}
+int main( int argc, char * const argv[] )
+{
+ const char * const socket_name = argv[1];
+ const char * const msg = argv[2];
+ int socket_fd;
+ struct sockaddr_un name;
+ // 创建套接字
+ socket_fd = socket( PF_LOCAL, SOCK_STREAM, 0 );
+ // 在套接字地址中存储服务器名称
+ name.sun_family = AF_LOCAL;
+ strcpy( name.sun_path, socket_name );
+ // 连接
+ connect( socket_fd, (struct sockaddr *)&name, SUN_LEN( &name ) );
+ // 发送消息
+ SendMsg( socket_fd, msg );
+ close( socket_fd );
+ return 0;
+}
+```
+
+程序测试运行
+- 编译链接服务器端程序和客户端程序(形成两个可执行文件)
+- 进入服务器端程序目录，在终端中输入：./server 
+/tmp/socket（启动套接字的服务器）；./server为服务器端程序名，/tmp/socket为本服务器启动后的套接字文件名（服务器和客户端就会通过这个文件通讯）
+- 进入客户端程序目录，在新终端中输入：./client 
+/tmp/socket "Hello World!"；./client为客户端程序名
+- 停止服务器，在客户端输入命令：./client /tmp/socket "quit"
+
+#### 网络套接字
+
+网络套接字和本地套接字理论上来讲实现上几乎没有差别，它就是那个属性设置的问题，剩下的基本上没有差别，只不过因为我们网络上数据的传输大部分的时候我们要生成HTML文档，那个时候生成HTML文档或解析HTML文档会比较麻烦一点，除此之外和本地套接字的实现基本上差不多，步骤是非常非常类似的。
+
+```c++
+// 客户端
+#include <stdlib.h>
+#include <stdio.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <string.h>
+// 请求Web服务器的主页
+void GetHomepage( int socket_fd ) {
+ char buffer[8192];
+ sprintf( buffer, "GET /\n" );// 把这个命令发到web服务器上
+ write( socket_fd, buffer, strlen( buffer ) );// 向套接字里写入请求
+ while( true ) {
+ ssize_t count = read( socket_fd, buffer, 8192 );
+ if( count == 0 ) return;
+ fwrite( buffer, sizeof( char ), count, stdout );
+ } 
+}
+int main( int argc, char * const argv[] )
+{
+ int socket_fd;
+ struct sockaddr_in name;
+ struct hostent * hostinfo;
+ socket_fd = socket( PF_INET, SOCK_STREAM, 0 );
+ name.sin_family = AF_INET;
+ hostinfo = gethostbyname( argv[1] );
+ if( hostinfo == NULL ) return 1;
+ else name.sin_addr = *( (struct in_addr *)hostinfo->h_addr );
+ name.sin_port = htons( 80 );
+ if( connect( socket_fd, (struct sockaddr *)&name,
+ sizeof(struct sockaddr_in) ) == -1 ) 
+ {
+ perror( "Failure to connect the server." );
+ return 2;
+ }
+ GetHomepage( socket_fd );
+ return 0;
+}
+```
+
+服务器端自己去实现！
