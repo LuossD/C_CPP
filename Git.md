@@ -2,7 +2,7 @@
 
 ---把大象放进冰箱需要三步: 1、把冰箱门打开 2、把大象放进去 3、把冰箱门关上
 
-## [1.Git、GitHub、GitLab三者之间的联系以及区别](https://www.cnblogs.com/leeyongbard/p/9777498.html)
+## [一.Git、GitHub、GitLab三者之间的联系以及区别](https://www.cnblogs.com/leeyongbard/p/9777498.html)
 
 在讲区别以及联系之前先简要的介绍一下，这三者都是什么(本篇文章适合刚入门的新手，大佬请出门左转)
 
@@ -142,7 +142,7 @@ GitLab 让开发团队对他们的代码仓库拥有更多的控制，相比较 
 
 所以，从代码的私有性上来看，GitLab 是一个更好的选择。但是对于开源项目而言，GitHub 依然是代码托管的首选。
 
-## 2.git版本的升级
+## 二.git版本的升级
 
 2.17.1之前用git update
 
@@ -152,13 +152,14 @@ GitLab 让开发团队对他们的代码仓库拥有更多的控制，相比较 
 
 向下兼容（Downward Compatible）又称**向后兼容（Backwards compatibility**）；对于软件来说，向下兼容的意思是，较高版本的程序能顺利处理较低版本程序的数据。 Git 在保持向后兼容方面表现很好。
 
-## 3.将本地文件夹push到github仓库
+## 三.将本地文件夹push到github仓库
 
 ```bash
 1、（先进入项目文件夹）通过命令 git init 把这个目录变成git可以管理的仓库
-   git init
+   git init # 会生成.git目录，它是本地版本库，包含它的就是工作区
 2、把文件添加到版本库中，使用命令 git add .添加到暂存区里面去，不要忘记后面的小数点“.”，意为添加文件夹下的所有文件
    git add .
+   # Git的版本库里存了很多东西，其中最重要的就是称stage（或者叫index）的暂存区，还有Git为我们自动创建的第一个分支master，以及指向master的一个指针叫HEAD。
 3、用命令 git commit告诉Git，把文件提交到仓库。引号内为提交说明
    git commit -m 'first commit'
    # 简单解释一下git commit命令，-m后面输入的是本次提交的说明，可以输入任意内容，当然最好是有意义的，这样你就能从历史记录里方便地找到改动记录。
@@ -167,7 +168,9 @@ GitLab 让开发团队对他们的代码仓库拥有更多的控制，相比较 
 　　git remote add origin https://github.com/MeFirebird/-.git（origin是默认的仓库名字，你可以改为自己喜欢的名字）
 6、把本地库的内容推送到远程，使用 git push命令，实际上是把当前分支master推送到远程。执行此命令后会要求输入用户名、密码，验证通过后即开始上传。
 　　git push -u origin master
-　　# 由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送的远程新的master分支，还会把本地的master分支和	  远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
+　　# 由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送的远程新的master分支，还会把本地的master分支和远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
+　　
+# 另外，push时需要输入github用户名和密码的方式是https的方式，也可以用ssh的方式，使用密钥对（公钥和私钥），这样每次推送的时候就不用输入了
 ```
 
 ![img](https://images2015.cnblogs.com/blog/987101/201703/987101-20170307170555016-1139738856.png)
@@ -269,15 +272,15 @@ Skip this step if you’re importing an existing repository.
 This will let you immediately clone the repository to your computer.
 ```
 
-因为我在新建仓库时用README初始化了仓库，如果用一个已有仓库导入其中就不用初始化了，这样就可以直接把本地仓库的内容推送到GitHub仓库。
+因为我在新建仓库时用README初始化了仓库，**如果用一个已有仓库导入其中就不用初始化了，这样就可以直接把本地仓库的内容推送到GitHub仓库。**
 
-## 4.git原理
+## 四.git原理
 
 ![img](https://images2017.cnblogs.com/blog/318519/201710/318519-20171026134145519-1705706787.png)
 
-## 5.git常用命令
+## 五.git常用命令
 
-### 1）Git fetch pull 的应用, git 多人同时修改一个文件后的合并
+### 1.Git fetch pull 的应用, git 多人同时修改一个文件后的合并
 
 Git中从远程的分支获取最新的版本到本地有这样2个命令：
 
@@ -323,13 +326,37 @@ git push origin + 远程分支名字  //将本地分⽀提交⾄指定远程分�
 
 git pull origin develop 从develop分支更新代码。
 
-### 2）git版本回退
+### 2.git版本回退
 
-**方法1**： git reset –hard HEAD ^  ( ^ 表示回到上一个版本，如果需要回退到上上个版本的话，将HEAD^改成HEAD^^, 以此类推。那如果要回退到前100个版本，这种方法肯定不方便，我们可以使用简便命令操作：git reset –hard HEAD~100 );
+git reset就是当我们提交了错误的内容后进行回退使用的命令。
 
-**即方法2** ：git reset –hard 版本号 ，但是现在的问题是加入我已经关掉了命令行或者第三个版本的版本号，我并不知道？那么要如何知道第三个版本的版本号呐。可以通过如下命令获取到版本号： git reflog  
+git reset 版本号，就是回退到该版本号上。
 
-### 3.git pull的时候发生冲突的解决方法之“error: Your local changes to the following files would be overwritten by merge”
+通常我们使用git reset HEAD就是回退到当前版本，git reset HEAD^回退到上一版本
+
+**方法1**： git reset --hard HEAD ^  ( ^ 表示回到上一个版本，如果需要回退到上上个版本的话，将HEAD ^ 改成HEAD^^, 以此类推。那如果要回退到前100个版本，这种方法肯定不方便，我们可以使用简便命令操作：git reset --hard HEAD~100 );
+
+**即方法2** ：git reset --hard 版本号 ，但是现在的问题是加入我已经关掉了命令行或者第三个版本的版本号，我并不知道？那么要如何知道第三个版本的版本号呐。可以通过如下命令获取到版本号： git reflog  
+
+**git reset 加不加 --hard的区别：**
+
+说明 git reset HEAD 会把暂存区恢复成HEAD，我们发现添加了错误的内容，此时我们**只是做了add 操作，就是将修改了内容添加到了暂存区，还没有执行commit，所以还没有生成版本号**，当前的版本号对应的内容，还是你add之前的内容，所以我们只需要将代码回退到当前版本就行，该操作不影响工作区。
+
+git reset --hard HEAD 命令 会将工作区和暂存区恢复成HEAD。始终要注意这git reset --hard是一个潜在的危险命令，因为它会丢弃所有未提交的更改。为了安全起见，在使用前git status，请务必检查其输出是否干净（即为空）。
+
+### 3.git log 与git reflog
+
+git log可以显示所有提交过的版本信息，不包括已经被删除的 commit 记录和 reset 的操作；
+
+git reflog是显示所有的操作记录，包括提交，回退的操作。一般用来找出操作记录中的版本号，进行回退。
+
+git reflog常用于恢复本地的错误操作。
+
+场景：我们commit了一个操作，发现提交的是错误的，我们进行了回退，git reset HEAD^,也进行了checkout 操作，就是把工作区的文件也回退还原了，这时候发现commit的没有问题。等于说删了不该删的了，咋整，想再回退到删除之前的。找到之前的版本号进行回退，使用git log发现那个提交的版本号记录根本不存在了。**说白了就是：在回退以后又想再次回到之前的版本！**
+
+这时候 git reflog就体现作用了。
+
+### 4.git pull的时候发生冲突的解决方法之“error: Your local changes to the following files would be overwritten by merge”
 
 **方法一、stash**
 
@@ -419,11 +446,11 @@ git的文件上的图标，可以反映出当前文件或者文件夹的状态�
 
 　　3、新添加的：**蓝色的加号**
 
-　　4、**未受控的（\**无版本控制的）：\*\*蓝色的问号\*\**\***
+　　4、**未受控的（无版本控制的）：蓝色的问号**（把带红色x的文件提交之后，文件就变为蓝色问号，表示本地还有一个副本，但是仓库浏览器里已经不存在该文件了）
 
 　　5、忽略不受控的：灰色的减号
 
-　　6、删除的：红色的x号
+　　6、删除的：红色的x号（只是把文件打上删除的标记，文件依然存在于本地仓库里）
 
 　　7、有冲突的：**黄色的感叹号**
 
