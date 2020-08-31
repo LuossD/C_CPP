@@ -163,12 +163,12 @@ GitLab 让开发团队对他们的代码仓库拥有更多的控制，相比较 
 3、用命令 git commit告诉Git，把文件提交到仓库。引号内为提交说明
    git commit -m 'first commit'
    # 简单解释一下git commit命令，-m后面输入的是本次提交的说明，可以输入任意内容，当然最好是有意义的，这样你就能从历史记录里方便地找到改动记录。
-   # 嫌麻烦不想输入-m "xxx"行不行？确实有办法可以这么干，但是强烈不建议你这么干，因为输入说明对自己对别人阅读都很重要。实在不想输入说明的童鞋请自行	Google，我不告诉你这个参数。
+   # 嫌麻烦不想输入-m "xxx"行不行？确实有办法可以这么干，但是强烈不建议你这么干，因为输入说明对自己对别人阅读都很重要。实在不想输入说明的童鞋请自行Google，我不告诉你这个参数。
 4、关联到远程库
 　　git remote add origin https://github.com/MeFirebird/-.git（origin是默认的仓库名字，你可以改为自己喜欢的名字）
 6、把本地库的内容推送到远程，使用 git push命令，实际上是把当前分支master推送到远程。执行此命令后会要求输入用户名、密码，验证通过后即开始上传。
 　　git push -u origin master
-　　# 由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送的远程新的master分支，还会把本地的master分支和远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
+　　# 由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送到远程新的master分支，还会把本地的master分支和远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
 　　
 # 另外，push时需要输入github用户名和密码的方式是https的方式，也可以用ssh的方式，使用密钥对（公钥和私钥），这样每次推送的时候就不用输入了
 ```
@@ -356,7 +356,17 @@ git reflog常用于恢复本地的错误操作。
 
 这时候 git reflog就体现作用了。
 
-### 4.git pull的时候发生冲突的解决方法之“error: Your local changes to the following files would be overwritten by merge”
+### 4.git status
+
+`git status`命令用于显示工作目录和暂存区的状态。使用此命令能看到那些修改被暂存到了, 哪些没有, 哪些文件没有被Git tracked到。`git status`**不显示已经`commit`到项目历史中去的信息**。看项目历史的信息要使用`git log`.
+
+提示：每次修改,如果不 add 到暂存区,那就不会加入到 commit 中
+
+我们可以git add后加一个点（.）来将当前目录下全部文件包含子目录中的全部文件加入暂存区。
+
+7、我修改了好几个文件是之前git add到暂存区过的，要怎么直接添加这几个文件呢，我们可以通过git add -u将之前git追踪过的文件一次性添加到暂存区。
+
+### 5.git pull的时候发生冲突的解决方法之“error: Your local changes to the following files would be overwritten by merge”
 
 **方法一、stash**
 
