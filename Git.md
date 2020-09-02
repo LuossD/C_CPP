@@ -358,13 +358,43 @@ git reflog常用于恢复本地的错误操作。
 
 ### 4.git status
 
-`git status`命令用于显示工作目录和暂存区的状态。使用此命令能看到那些修改被暂存到了, 哪些没有, 哪些文件没有被Git tracked到。`git status`**不显示已经`commit`到项目历史中去的信息**。看项目历史的信息要使用`git log`.
+`git status`命令用于显示工作目录和暂存区的状态。使用此命令能看到哪些修改被暂存到了, 哪些没有, 哪些文件没有被Git tracked到。**即列出当前目录所有还没有被git管理的文件和被git管理且被修改但还未提交(git commit)的文件**.`git status`**不显示已经`commit`到项目历史中去的信息**。看项目历史的信息要使用`git log`.
 
 提示：每次修改,如果不 add 到暂存区,那就不会加入到 commit 中
 
 我们可以git add后加一个点（.）来将当前目录下全部文件包含子目录中的全部文件加入暂存区。
 
-7、我修改了好几个文件是之前git add到暂存区过的，要怎么直接添加这几个文件呢，我们可以通过git add -u将之前git追踪过的文件一次性添加到暂存区。
+我修改了好几个文件是之前git add到暂存区过的，要怎么直接添加这几个文件呢，我们可以通过git add -u将之前git追踪过的文件一次性添加到暂存区。
+
+> 附：nothing added to commit but untracked files present解决方法
+>
+> **解决办法**
+>
+> 将未提交但不需要的文件添加到git忽略文件 **.gitignore**
+>
+> 1.git status
+>
+> 2.将要忽略的文件写入到.gitignore
+>
+> ```bash
+> vim .gitignore
+> ```
+>
+> 3.追加如下内容（根据自己的提示添加）
+>
+> ```bash
+> /target/ 
+> zblog.iml
+> ```
+>
+> **PS:注意实际路径可以用 *模糊操作**
+>
+> 4.将这些文件或文件夹add进去
+>
+> ```bash
+> git add /target/.
+> git add zblog.iml
+> ```
 
 ### 5.git pull的时候发生冲突的解决方法之“error: Your local changes to the following files would be overwritten by merge”
 
@@ -446,7 +476,95 @@ git pull会把本地未提交修改覆盖吗？
 >
 > git库版本与本地库版本冲突：个人定义为就是git库版本与本地库版本不匹配，详细地说就是我们从git库clone克隆下来的版本，经过修改后提交并合并成新版本，但是后来又将git库的该版本撤销了，而本地没有撤销该版本，此时就是本地库拥有此版本而git库中没有此版本。这样在使用git pull或git pull origin master可能会出现：“Your local changes to the following files would be overwritten by merge”或"PULL  不可用，因为您尚有未合并的文件“或"自动合并失败，修正冲突后提交修正后的结果"“Your local changes to the following files would be overwritten by merge”这样的错误，意思就是你的本地修改以下文件将被覆盖合并。
 
-## 6.git文件常见下标符号说明
+### 6.git一次提交多个文件时写了一个提交信息结果每个文件都是那个信息，如何修改？如何为每个文件写提交信息？
+
+git 一次add多个文件的方法
+
+```bash
+git add file_1 file_2 file_3
+```
+
+如果文件已经被追踪，多个文件修改后，可以直接git add -u。
+
+如果要为每个文件写不同的提交信息，可使用如下shell脚本
+
+```bash
+#!/bin/sh
+
+PROJECT_DIR=.
+
+for FILE in ${PROJECT_DIR}/*
+do
+    git add ${FILE}
+    git commit 
+done
+# 还没试过，先放这里备用
+```
+
+回归正题：
+
+```bash
+git add add1.txt
+git add add2.txt
+git commit -m "add file"
+
+# 这样会导致两个文件的提交说明是一样的，而且我已经提交到了远程仓库了，这时候如果想修改提交信息，目前采用如下方法：
+git reset HEAD
+git add add1.txt
+git commit -m “add one file”
+git add add2.txt
+git commit -m “add another file”
+git push -f test master
+如果不使用-f强制push，会报错：
+ ! [rejected]        master -> master (non-fast-forward)
+error: failed to push some refs to 'https://github.com/LuossD/testgit'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. Integrate the remote changes (e.g.
+hint: 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+此时如果用“git push”会报错，因为我们本地库HEAD指向的版本比远程库的要旧！
+```
+
+如果你只想修改最后一次注释（就是最新的一次提交），那好办：
+
+```bash
+git commit --amend
+```
+
+修改之前的某次注释
+
+```bash
+输入：
+git rebase -i HEAD~2
+最后的数字2指的是显示到倒数第几次 比如这个输入的2就会显示倒数的两次注释（最上面两行）
+```
+
+你想修改哪条注释 就把哪条注释前面的`pick`换成`edit`。
+
+1. 然后：（接下来的步骤Terminal会提示）
+   `git commit --amend`
+2. 修改注释，保存并退出后，输入：
+   git rebase --continue
+
+### 修改之前的某几次注释
+
+修改多次的注释其实步骤和上面的一样，不同点在于：
+
+1. 同上
+2. 你可以将**多个**想修改的commit注释前面的`pick`换成`edit`
+3. **依次修改**你的注释（顺序是从旧到新），Terminal基本都会提示你接下来的操作，每修改一个注释都要重复上面的1和2步，直到修改完你所选择的所有注释
+
+已经将代码push**到远程仓库**
+
+首先，你把最新的版本从远程仓库先pull下来，修改的方法都如上，最后修改完成后，强制push到远程仓库：
+ `git push --force origin master`
+ **注：很重要的一点是，你最好保证在你强制push之前没有人提交代码，如果在你push之前有人提交了新的代码到远程仓库，然后你又强制push，那么会被你的强制更新覆盖！！！**另外使用rebase后操作一定要做完，不然出现master|RENASE，搞的头大，**此时**如果想要放弃当前rebase操作，用 `git rebase --abort`。
+
+最后，可以检查一下远程的提交记录~~
+
+暂时没搜到如何一次写入多条提交信息！使用git时尽量小心，里面有太多命令太多坑了。
+
+## 六.git文件常见下标符号说明
 
 git的文件上的图标，可以反映出当前文件或者文件夹的状态。
 
