@@ -126,7 +126,7 @@ memset(a, 0 , sizeof(a));
 
 特别注意：
 
-1、全局变量和静态变量初始化时会自动被设置为0。如果们声明全局变量，那么他在运行前会变成全0。
+1）全局变量和静态变量初始化时会自动被设置为0。如果们声明全局变量，那么他在运行前会变成全0。
 
 ```c++
 int arr[1024]; // This is global
@@ -134,7 +134,7 @@ int main(void)
 { //statements}
 ```
 
-2、对于局部数组我们还有**简写的初始化语法**。如果一个数组被**部分初始化，没有被初始化的元素会被自动设置为相应类型的0**。**这是编译器自动完成的**，可以这样写：
+2）对于局部数组我们还有**简写的初始化语法**。如果一个数组被**部分初始化，没有被初始化的元素会被自动设置为相应类型的0**。**这是编译器自动完成的**，可以这样写：
 
 ```c++
 int main()
@@ -144,4 +144,158 @@ int main()
 // 变长数组（柔性数组）不可用。
 ```
 
-3、你还可以用memset函数在程序开始时初始化数组。**这条命令这在你已经修改了数组之后又想将它重置为全0特别有用。（变长数组适用）**
+3）你还可以用memset函数在程序开始时初始化数组。**这条命令这在你已经修改了数组之后又想将它重置为全0特别有用。（变长数组适用）**
+
+#### 2.C风格字符串
+
+C 风格字符串是一种特殊的字符数组。您在前面编写代码时使用过字符串字面量，它们就是 C 风格字符串：
+
+std::cout << "Hello World"; 
+
+这与下面使用数组的方式等价：
+
+char sayHello[] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '\0'}; 
+
+std::cout << sayHello << std::endl; 
+
+这种 C 风格字符串是特殊的字符数组，因为总是在最后一个字符后加上空字符‘\0’。您**在代码中使用字符串字面量时，编译器将负责在它后面添加‘\0’**。
+
+**在数组中间插入‘\0’并不会改变数组的长度，而只会导致将该数组作为输入的字符串处理将到这个位置结束**，如下程序演示了这一点。
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: char sayHello[] = {'H','e','l','l','o',' ','W','o','r','l','d','\0'}; 
+ 6: cout << sayHello << endl; 
+ 7: cout << "Size of array: " << sizeof(sayHello) << endl; 
+ 8: 
+ 9: cout << "Replacing space with null" << endl; 
+10: sayHello[5] = '\0'; 
+11: cout << sayHello << endl; 
+12: cout << "Size of array: " << sizeof(sayHello) << endl; 
+13: 
+14: return 0; 
+15: }
+
+输出如下：
+Hello World 
+Size of array: 12 
+Replacing space with null 
+Hello 
+Size of array: 12
+// 第 10 行将“Hello World”中的空格替换为终止空字符。这样，该数组包含两个终止空字符，但只有第一个发挥了作用，导致第 11 行显示字符串时将其截短为 Hello。第 7 和 12 行的 sizeof( )的输出表明，数组的长度没变，虽然显示的字符串发生了很大变化。
+```
+
+注意：如果在第 5 行声明并**初始化字符数组时忘记添加‘\0’，则打印该数组时，Hello World 后面将出现垃圾字符**，这是因为 std::cout 只有遇到空字符后才会停止打印，即便这将跨越数组的边界。在有些情况下，这种错误可能导致程序崩溃，进而影响系统的稳定性。
+
+C 风格字符串充斥着危险，看如下程序
+
+```c++
+ 0: #include<iostream> 
+ 1: #include<string.h> 
+ 2: using namespace std; 
+ 3: int main() 
+ 4: { 
+ 5: cout << "Enter a word NOT longer than 20 characters:" << endl; 
+ 6: 
+ 7: char userInput [21] = {'\0'}; 
+ 8: cin >> userInput; 
+ 9: 
+10: cout << "Length of your input was: " << strlen (userInput) << " " << sizeof(userInput) << endl; 
+11: 
+12: return 0; 
+13: }
+// 
+Enter a word NOT longer than 20 characters: 
+Don'tUseThisProgram 
+Length of your input was: 19 21
+// 第 10 行使用了 strlen 来计算该字符串的长度。strlen遍历该字符数组，直到遇到表示字符串末尾的终止空字符，并计算遍历的字符数。cin 在用户输入的末尾插入终止空字符。strlen 的这种行为非常危险，因为如果用户输入的文本长度超过了指定的上限，strlen将跨越字符数组的边界
+```
+
+注意：
+
+当输入字符串时，运算符“>>”的作用是跳过空白，读入后面的非空白字符，直到遇到另一个空白字符为止，并在串尾放一个字符‘\0’。也就是说在你输入实际字符前的空格它跳过，输入实际字符后再遇到空格提取就截止了，比如：
+
+```c++
+  heisa cute
+Length of your input was: 5
+// 字符前有两个空格都跳过了
+```
+
+解决方法：
+
+```c++
+void getstring()
+{  cout<<“请输入字符串：”<<endl;
+   gets(str);
+}
+当键入的字符串为:
+Object_Oriented Programming!
+   结果是:
+   str指向的字符串为：
+   “Object_Oriented Programming!”
+注：也可以使用cin.getline()，但gets（）更简单。
+```
+
+另外：字符串数组初始化的时候全初始化为'\0'，即空字符，要判断是否初始化为空字符了，可以输出其ASCII码int(userInput[1])看看其值是否为0，测试表示是的。
+
+**提醒**：这些 C 风格字符串作为输入的函数非常危险，因为它们寻找终止空字符，如果程序员没有在字符数组末尾添加空字符，这些函数将跨越字符数组的边界。
+
+#### 3.C++字符串：使用 std::string
+
+无论是处理文本输入，还是执行拼接等字符串操作，使用 C++标准字符串都是更高效、更安全的方式。不同于字符数组（C 风格字符串实现），std::string 是动态的，在需要存储更多数据时其容量将增大。
+
+> 1）文件cstring，和string.h对应，c++版本的头文件，包含比如strcpy之类的字符串处理函数
+> 2）文件string.h，和cstring对应，c版本的头文件，包含比如strcpy之类的字符串处理函数
+> 3）文件string，包含std::string的定义，属于STL范畴
+> 4）CString，MFC里的的字符串类
+
+```c++
+ 1: #include <string> 
+ 2: 
+ 3: using namespace std; 
+ 4：
+ 5: int main() 
+ 6: { 
+ 7: string greetString ("Hello std::string!"); 
+ 8: cout << greetString << endl; 
+ 9: 
+10: cout << "Enter a line of text: " << endl; 
+11: string firstLine; 
+12: getline(cin, firstLine); 
+13: 
+14: cout << "Enter another: " << endl; 
+15: string secondLine; 
+16: getline(cin, secondLine); 
+17: 
+18: cout << "Result of concatenation: " << endl; 
+19: string concatString = firstLine + " " + secondLine; 
+20: cout << concatString << endl; 
+21: 
+22: cout << "Copy of concatenated string: " << endl; 
+23: string aCopy; 
+24: aCopy = concatString; 
+25: cout << aCopy << endl; 
+26: 
+27: cout << "Length of concat string: " << concatString.length() << endl; 
+28: 
+29: return 0; 
+30: }
+```
+
+```c++
+Hello std::string! 
+Enter a line of text: 
+I love 
+Enter another: 
+C++ strings 
+Result of concatenation: 
+I love C++ strings 
+Copy of concatenated string: 
+I love C++ strings 
+Length of concat string: 18
+```
+
