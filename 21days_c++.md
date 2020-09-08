@@ -338,3 +338,341 @@ int main()
 } 
 ```
 
+## 第五章.使用表达式、语句和运算符
+
+### 知识点
+
+从本质上说，程序是一组按顺序执行的命令。**这些命令为表达式和语句，使用运算符执行特定的计算或操作。**
+
+#### 1.递增运算符的前缀与后缀
+
+```c++
+int num2 = num1++; // Postfix increment operator 
+int num2 = ++num1; // Prefix increment operator
+```
+
+首先需要理解前缀和后缀之间的差别，这样才能选择合适的方式。使用后缀运算符时，**先将右值赋给左值，再将右值递增或递减**。这意味着在上述所有使用后缀运算符的代码中，num2 都为 num1 的旧值（执行递增或递减前的值）。前缀运算符的行为完全相反，即**先将右值递增或递减，再将结果赋给左值**。
+
+在下面的语句中，使用前缀还是后缀运算符对结果没有影响：
+
+```c++
+startValue++; // Is the same as…
+
+++startValue; 
+```
+
+这是因为没有将原来的值赋给其他变量，这两种情形的最终结果都是将startValue 递增。
+
+注意：
+
+您经常会听到前缀运算符的性能更高还是后缀运算符性能更高的争论。换句话说，++startValue 优于 startValue++。
+
+至少从理论上说确实如此，**因为使用后缀运算符时，编译器需要临时存储初始值，以防需要将其赋给其他变量**。就整型变量而言，这对性能的影响几乎可以忽略不计，但对某些类来说，这种争论也许有意义。聪明的编译器可能通过优化消除这种差异。
+
+#### 2.关系表达式中输出布尔类型变量
+
+输出时布尔值 false 显示为 0，而布尔值 true 显示为 1。实际上bool型变量占用了 1 个字节的内存，当值为 false 的时候，实际上zhi存储的是 0x00,
+为ture时实际上存储的是 0x01。因此，可以认为bool类型做为整型用时为true=1，false=0。
+
+如果使用c++中iostream来输出的话可以用std::boolalpha 来控制，默认情况下使用整数0,1来代表bool值的。如果想输出true或false，则应写成这样：
+
+```c++
+bool test = true;
+cout << "the output is number " << test << endl;
+cout << "the output is bool(use boolalpha) " << boolalpha << test << endl;
+cout << "the output is number(use noboolalpha) " << noboolalpha << test << endl;
+```
+
+#### 3.使用 C++逻辑运算 NOT（!）、AND（&&）和 OR（||）
+
+如果明天下雨且没有公交车，我就不能去上班
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: cout << "Use boolean values(0 / 1) to answer the questions" << endl; 
+ 6: cout << "Is it raining? "; 
+ 7: bool isRaining = false; 
+ 8: cin >> isRaining; 
+ 9: 
+10: cout << "Do you have buses on the streets? "; 
+11: bool busesPly = false; 
+12: cin >> busesPly; 
+13: 
+14: // Conditional statement uses logical AND and NOT 
+15: if (isRaining && !busesPly) 
+16: cout << "You cannot go to work" << endl; 
+17: else 
+18: cout << "You can go to work" << endl; 
+19: 
+20: if (isRaining && busesPly) 
+21: cout << "Take an umbrella" << endl; 
+22: 
+23: if ((!isRaining) && busesPly) 
+24: cout << "Enjoy the sun and have a nice day" << endl; 
+25: 
+26: return 0; 
+27: }
+```
+
+#### 4.按位运算符 NOT（～）、AND（&）、OR（|）和 XOR（^）
+
+逻辑运算符和按位运算符之前的差别在于，**按位运算符返回的并非布尔值，而是对操作数对应位执行指定运算的结果**。C++让您能够执行按位 NOT、OR、AND 和 XOR（异或）运算，它们分别使用～将每位取反、使用 | 对相应位执行 OR 运算、使用 & 对相应位执行 AND 运算、使用 ^ 对相应位执行 XOR运算。其中后三个运算符对变量与选择的数字（通常是位掩码）执行相应的运算。
+
+#### 5.按位右移运算符（>>）和左移运算符（<<）
+
+移位运算符将整个位序列向左或向右移动，其用途之一是将数据乘以或除以 2n。
+
+```c++
+下面的移位运算符使用示例将变量乘以 2：
+int doubledValue = num << 1; // shift bits one position left to double value 
+下面的的移位运算符使用示例将变量除以 2：
+int halvedValue = num >> 1; // shift bits one position right to halve value
+```
+
+#### 6.使用运算符 sizeof 确定变量占用的内存量
+
+这个运算符指出特定类型或变量占用的内存量，单位为字节。sizeof 的用法如下：
+
+```c++
+sizeof (variable); 
+或
+sizeof (type); 
+```
+
+注意：sizeof(…)看起来像函数调用，但它并不是函数，而是运算符。有趣的是，程序员不能定义这个运算符，因此不能重载它。
+
+#### 7.运算符优先级
+
+务必使用括号让代码和表达式易于理解。不要编写必须依靠运算符优先级表才能理解的复杂表达式；应确保代码对人来说也易于理解。
+
+务必使用正确的变量类型，确保它不会溢出。
+
+所有的左值（如变量）都可用作右值，但并非所有的右值都可用作左值（如“Hello World”），务必要明白这一点。
+
+### 习题
+
+#### 1.既然 unsigned short 占用的内存更少，为何有些程序还使用 unsigned int？
+
+unsigned short 变量的最大取值通常为 65535（占用16位内存，2个字节），如果这种变量的值已经是 65535，再递增将溢出，变成零。为避免这种行为，设计良好的程序在不能确定变量的取值远低于 65535 时，应将其数据类型声明为 unsigned int。
+
+## 第六章.控制程序流程
+
+### 知识点
+
+避免使用 goto，可防止代码不直观难以理解且难以维护。
+
+#### 1.for循环
+
+初始化语句、条件表达式（检查退出条件）以及修改变量（变量更新）的语句都是可选的，for 语句可以不包含这些部分。
+
+使用 for 循环（省略了修改变量的语句）根据用户的请求重复执行计算
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: // without loop expression (third expression missing) 
+ 6: for(char userSelection = 'm'; (userSelection != 'x');) 
+ 7: { 
+ 8: cout << "Enter the two integers: " << endl; 
+ 9: int num1 = 0, num2 = 0; 
+10: cin >> num1; 
+11: cin >> num2; 
+12: 
+13: cout << num1 << " x " << num2 << " = " << num1 * num2 << endl; 
+14: cout << num1 << " + " << num2 << " = " << num1 + num2 << endl; 
+15: 
+16: cout << "Press x to exit or any other key to recalculate" << endl; 
+17: cin >> userSelection; 
+18: } 
+19: 
+20: cout << "Goodbye!" << endl; 
+21: 
+22: return 0; 
+23: }
+```
+
+注意：
+
+在 for 循环的初始化表达式中，可初始化多个变量。对于程序清单 6.11 所示的 for 循环，
+
+如果在其中初始化多个变量，将类似于下面这样：
+
+```c++
+for (int counter1 = 0, counter2 = 5; // initialize 
+ counter1 < ARRAY_LENGTH; // check 
+ ++counter1, --counter2) // increment, decrement 
+```
+
+注意到新增的变量 counter2 被初始化为 5。有趣的是，还可使用**循环表达式**（第三个表达式）在每次循环时都将其递减。
+
+所以，for循环内部可以总结为三个表达式：初始化表达式，条件表达式，循环表达式。
+
+#### 2.基于范围的for循环
+
+C++11 引入了一种新的 for 循环，让对一系列值（如数组包含的值）进行操作的代码更容易编写和理解。
+
+基于范围的 for 循环也使用关键字 for：
+
+```c++
+for (VarType varName : sequence) 
+{ 
+ // Use varName that contains an element from sequence 
+} 
+```
+
+```c++
+例如，给定一个整型数组 someNums，可像下面这样使用基于范围的 for 循环来读取其中的元素：
+int someNums[] = { 1, 101, -1, 40, 2040 }; 
+for (int aNum : someNums) // range based for 
+	cout << "The array elements are " << aNum << endl;
+```
+
+通过使用关键字 auto 来自动推断变量的类型，可编写一个通用的 for 循环，对任何类型的数组 elements 进行处理，从而进一步简化前面的 for 语句：
+
+```c++
+for (auto anElement : elements) // range based for
+	cout << "Array elements are " << anElement << endl;
+```
+
+这种简洁性让基于范围的 for 循环成了最受欢迎的 C++新功能之一。
+
+特别的，无限for循环：for(;;)。
+
+#### 3.continue与break
+
+C++ 中的 **continue** 语句有点像 **break** 语句。但它不是强迫终止，continue 会**跳过当前循环中的代码，强迫开始下一次循环**。
+
+对于 **for** 循环，**continue** 语句会导致执行条件测试和循环增量部分。对于 **while** 和 **do...while** 循环，**continue** 语句会导致程序控制回到条件测试上。（即重新评估循环条件，如果为 true，则重新进入循环块）
+
+![img](https://www.runoob.com/wp-content/uploads/2014/09/c-continue-statement-works.jpg)
+
+注意：程序员通常的预期是，如果循环条件满足，将执行循环中的所有代码。contiune 和 break改变了这种行为，可能导致代码不直观。因此，应尽量少用 continue 和 break。不要不分青红皂白地使用 continue 和 break。除非万不得已，否则不要编写使用 break 来结束的无限循环。
+
+#### 4.嵌套循环
+
+使用嵌套循环计算斐波纳契数列
+
+著名的斐波纳契数列以 0 和 1 打头，随后的每个数字都是前两个数字之和。因此斐波纳契数列的开头类似于下面这样：
+
+0, 1, 1, 2, 3, 5, 8, … and so on
+
+```c++
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: const int numsToCalculate = 5; 
+ 6: cout << "This program will calculate " << numsToCalculate \ 
+ 7: << " Fibonacci Numbers at a time" << endl; 
+ 8: 
+ 9: int num1 = 0, num2 = 1; 
+10: char wantMore = '\0'; 
+11: cout << num1 << " " << num2 << " "; 
+12: 
+13: do 
+14: { 
+15: for (int counter = 0; counter < numsToCalculate; ++counter) 
+16: { 
+17: cout << num1 + num2 << " ";
+18: 
+19: int num2Temp = num2; 
+20: num2 = num1 + num2; 
+21: num1 = num2Temp; 
+22: } 
+23: 
+24: cout << endl << "Do you want more numbers (y/n)? "; 
+25: cin >> wantMore; 
+26: }while (wantMore == 'y'); 
+27: 
+28: cout << "Goodbye!" << endl; 
+29: 
+30: return 0; 
+31: }
+// 这个程序将一次计算5个斐波那契数。部 do…while 循环基本上是一个询问循环，询问用户是否要生成更多的数字。
+```
+
+### 习题
+
+#### 1.我通过复制并粘贴将 do…while(exp);改成了 while(exp);，这会导致问题吗？
+
+会出大问题！while(exp);合法，却是一个空 while 循环，因为 while 后面是一条空语句（分号），即便后面有语句块亦如此。后面的语句块将执行一次，但它位于循环外面。复制并粘贴代码时务必小心。
+
+#### 2.编写一个 switch-case 结构，指出用户选择的颜色是否出现在彩虹中。请使用枚举常量
+
+```c++
+#include <iostream> 
+using namespace std; 
+int main() 
+{ 
+ enum Colors 
+ { 
+ Violet = 0, 
+ Indigo, 
+ Blue, 
+ Green, 
+ Yellow, 
+ Orange, 
+ Red, 
+ Crimson, 
+ Beige, 
+ Brown, 
+ Peach, 
+ Pink, 
+ White, 
+ }; 
+ cout << "Here are the available colors: " << endl; 
+ cout << "Violet: " << Violet << endl; 
+ cout << "Indigo: " << Indigo << endl; 
+ cout << "Blue: " << Blue << endl; 
+ cout << "Green: " << Green << endl; 
+ cout << "Yellow: " << Yellow << endl;
+ cout << "Red: " << Red << endl; 
+ cout << "Crimson: " << Crimson << endl; 
+ cout << "Beige: " << Beige << endl; 
+ cout << "Brown: " << Brown << endl; 
+ cout << "Peach: " << Peach << endl; 
+ cout << "Pink: " << Pink << endl; 
+ cout << "White: " << White << endl; 
+ cout << "Choose one by entering code: "; 
+ int YourChoice = Blue; // initial 
+ cin >> YourChoice; 
+ switch (YourChoice) 
+ { 
+ case Violet: 
+ case Indigo: 
+ case Blue: 
+ case Green: 
+ case Yellow: 
+ case Orange: 
+ case Red: 
+ 	cout << "Bingo, your choice is a Rainbow color!" << endl; 
+ 	break; 
+ default: 
+ 	cout << "The color you chose is not in the rainbow" << endl; 
+ 	break; 
+ } 
+ return 0; 
+}
+// 可以看到多个case的语句相同时可以放在最后只写一个
+```
+
+#### 3.查错：下面的代码有何错误？
+
+```c++
+int loopCounter = 0; 
+while(loopCounter <5); 
+{ 
+ cout << loopCounter << " "; 
+ loopCounter++; 
+}
+```
+
+在 while 语句后面是一条空语句（;），因此无法实现预期的循环。另外，由于控制 while 的loopCounter 永远不会递增，**因此 while 循环永远不会结束，它后面的语句不会执行。**
+
