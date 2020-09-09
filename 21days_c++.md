@@ -829,3 +829,102 @@ fun(nullptr);//输出2，nullptr 为空指针常量。是指针类型
 }
 ```
 
+#### 2.动态内存分配
+
+您使用 new 来分配新的内存块。通常情况下，如果成功，**new 将返回指向一个指针，指向分配的内存，否则将引发异常**。使用 new 时，需要指定要为哪种数据类型分配内存：
+
+```c++
+Type* Pointer = new Type; // request memory for one element 
+需要为多个元素分配内存时，还可指定要为多少个元素分配内存：
+Type* Pointer = new Type[numElements]; // request memory for numElements 
+因此，如果需要给整型分配内存，可使用如下语法：
+int* pointToAnInt = new int; // get a pointer to an integer 
+int* pointToNums = new int[10]; // pointer to a block of 10 integers
+// New返回一个指针，因此将其赋给了一个指针变量
+```
+
+**注意**：new 表示请求分配内存，并不能保证分配请求总能得到满足，因为这取决于系统的状态以及内存资源的可用性。
+
+**警告**：不能将运算符 delete 用于任何包含地址的指针，而只能用于 new 返回的且未使用 delete释放的指针。
+
+注意：运算符 new 和 delete 分配和释放自由存储区中的内存。自由存储区是一种内存抽象，表现为一个内存池，应用程序可分配（预留）和释放其中的内存。
+
+**特别注意**：将指针递增或递减的结果
+
+将指针递增或递减时，其包含的地址将增加或减少指向的数据类型的 sizeof（并不一定是 1 字节）。这样，**编译器将确保指针不会指向数据的中间或末尾，而只会指向数据的开头**。
+
+如果声明了如下指针：
+
+Type* pType = Address; 
+
+则执行++pType 后，pType 将包含（指向）Address + sizeof(Type)。
+
+<div style=text-align:center>使用偏移量和运算符来递增和递减指针</div>
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: cout << "How many integers you wish to enter? "; 
+ 6: int numEntries = 0; 
+ 7: cin >> numEntries; 
+ 8: 
+ 9: int* pointsToInts = new int [numEntries]; 
+10: 
+11: cout << "Allocated for " << numEntries << " integers" << endl; 
+12: for(int counter = 0; counter < numEntries; ++counter) 
+13: { 
+14: cout << "Enter number "<< counter << ": "; 
+15: cin >> *(pointsToInts + counter); 
+16: } 
+17: 
+18: cout << "Displaying all numbers entered: " << endl; 
+19: for(int counter = 0; counter < numEntries; ++counter) 
+20: 	cout << *(pointsToInts++) << " "; 
+21: // 这里不加括号也可以，因为后缀++优先级高于*
+22: cout << endl; 
+23: 
+24: // return pointer to initial position 
+25: pointsToInts -= numEntries; 
+26: 
+27: // done with using memory? release 
+28: delete[] pointsToInts; 
+29: 
+30: return 0; 
+31: }
+```
+
+这个程序演示了两种递增指针的方法：一是使用偏移量，如第 15 行所示，它使用偏移量变量 counter 将用户输入直接存储到内存单元中；二是使用运算符++，如第 20 行所示，它将指针包含的地址递增，让指针指向下一个元素。
+
+这里再补充一下前缀++与后缀++的区别：
+
+```c++
+int i = 0, n = 0;
+int test = ++i;
+//此时，test等于1，i也等于1
+test = n++;
+//此时，test等于0，n等于1
+```
+
+因此，要说本质区别就是：前缀加加返回自增后的自己，而后缀加加是返回自增前的值。
+
+所以cout << a++；，输出的值是a自增前的值（a++是先取值后自增）。
+
+```c++
+int b = 1;
+cout << b++; // 输出1
+cout << b++ << b << endl;// 输出1、1
+// cout << b << ' ' << b++ << endl; 输出2、1
+cout << b;// 输出2
+// ++是运算符，但是a++是表达式（表达式是由运算符和操作数组合而成的式子）
+```
+
+这里有get到一个知识点：
+
+cout的输出顺序有如下规律：
+
+计算顺序：自右至左
+
+输出顺序：自左至右
