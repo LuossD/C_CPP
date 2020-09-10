@@ -847,7 +847,7 @@ int* pointToNums = new int[10]; // pointer to a block of 10 integers
 
 **警告**：不能将运算符 delete 用于任何包含地址的指针，而只能用于 new 返回的且未使用 delete释放的指针。
 
-注意：运算符 new 和 delete 分配和释放自由存储区中的内存。自由存储区是一种内存抽象，表现为一个内存池，应用程序可分配（预留）和释放其中的内存。
+注意：**运算符** new 和 delete 分配和释放自由存储区中的内存。自由存储区是一种内存抽象，表现为一个内存池，应用程序可分配（预留）和释放其中的内存。
 
 **特别注意**：将指针递增或递减的结果
 
@@ -896,7 +896,7 @@ Type* pType = Address;
 31: }
 ```
 
-这个程序演示了两种递增指针的方法：一是使用偏移量，如第 15 行所示，它使用偏移量变量 counter 将用户输入直接存储到内存单元中；二是使用运算符++，如第 20 行所示，它将指针包含的地址递增，让指针指向下一个元素。
+这个程序演示了两种递增指针的方法：一是使用偏移量，如第 15 行所示，它使用偏移量变量 counter 将用户输入直接存储到内存单元中；二是使用运算符++，如第 20 行所示，它将指针包含的地址递增，让指针指向下一个元素。**调用 delete[]来释放内存时，必须指定分配内存时 new 返回的指针地址。这个值最初存储在pointsToInts 中**，但第 20 行的运算符++修改了 pointsToInts，因此第 25 行使用运算符-=让 pointsToInts重新指向原来的地址，再在第 28 行对这个地址调用 delete[]。
 
 这里再补充一下前缀++与后缀++的区别：
 
@@ -921,10 +921,420 @@ cout << b;// 输出2
 // ++是运算符，但是a++是表达式（表达式是由运算符和操作数组合而成的式子）
 ```
 
-这里有get到一个知识点：
+这里又get到一个知识点：
 
 cout的输出顺序有如下规律：
 
 计算顺序：自右至左
 
 输出顺序：自左至右
+
+2）将指针传递给函数
+
+指针是一种将内存空间传递给函数的有效方式，其中可包含函数完成其工作所需的数据，也可包含操作结果。将指针作为函数参数时，确保函数只能修改您希望它修改的参数很重要。例如，如果函数根据以指针方式传入的半径计算圆的面积，就不应允许它修改半径。为控制函数可修改哪些参数以及不能修改哪些参数，可使用关键字 const。
+
+关于是指针常量还是常量指针，看书写顺序其实很好看出：
+
+```c++
+const int * p；// 从左往右读，const int 然后*，即常量指针，指向常量的指针；类似于字符指针，指向字符的指针
+int * const p; // 从左往右读，先*后const，即指针常量，指针指向的地址是常量，指针不可修改；类似于字符常量，字符不可修改
+```
+
+在计算圆面积的函数中使用关键字 const 
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: void CalcArea(const double* const ptrPi, // const pointer to const data 
+ 4: const double* const ptrRadius, // i.e. no changes allowed 
+ 5: double* const ptrArea) // can change data pointed to 
+ 6: { 
+ 7: // check pointers for validity before using! 
+ 8: if (ptrPi && ptrRadius && ptrArea) 
+ 9: 	*ptrArea = (*ptrPi) * (*ptrRadius) * (*ptrRadius); 
+10: } 
+11: 
+12: int main() 
+13: { 
+14: const double Pi = 3.1416; 
+15: 
+16: cout << "Enter radius of circle: "; 
+17: double radius = 0; 
+18: cin >> radius; 
+19: 
+20: double area = 0; 
+21: CalcArea (&Pi, &radius, &area); 
+22: 
+23: cout << "Area is = " << area << endl; 
+24: 
+25: return 0; 
+26: }
+```
+
+ptrArea 显然是用于存储输出的参数，因为不能修改该指针的值（地址），但可修改它指向的数据。第 8 行在使用函数的指针参数前检查其有效性。在调用者不小心将这三个参数之一设置为 NULL 指针时，您不希望函数计算面积，因为这种非法访问将导致应用程序崩溃。
+
+3）数组和指针的类似之处
+
+数组是指向其第一个元素的指针。
+
+由于数组变量就是指针，因此也可将用于指针的解除引用运算符（*）用于数组。同样，可将数组运算符（[]）用于指针。
+
+换句话说，数组类似于在固定内存范围内发挥作用的指针。可将数组赋给指针，但不能将指针赋给数组，因为数组是静态的，数组名是常量，不能用作左值。
+
+> 再补充一下知识点：
+>
+> char c[5]={};
+>
+> 1.数值名`c`是一个地址常量，表示数组首元素的地址
+> 2.`&c[0]`也表示数组首元素的地址
+> 3.但`&c`表示的是整个数组的首地址。
+> 这三者的地址值是相同的，但第3与1、2含义却不一样，1与2不管是地址值还是含义都是一样的。
+>
+> ![在这里插入图片描述](https://img-blog.csdnimg.cn/20190705210748495.PNG)
+>
+> ![在这里插入图片描述](https://img-blog.csdnimg.cn/20190705210756408.PNG)
+>
+> 可以看到，c+1和&c[0]+1是以一个char型大小为单位增加的，而`&c+1`是以整个数组大小为单位增加的。
+
+当您声明下面的 int 数组时：
+
+int myNumbers[5]; 
+
+编译器将分配固定数量的内存，用于存储 5 个整数；同时向您提供一个指向数组中第一个元素的指针，而指针由您指定的数组名标识。换句话说，myNumbers 是一个指针，指向第一个元素（myNumber[0]）。
+
+#### 3.使用指针时常犯的编程错误
+
+1）确保应用程序释放其分配的所有内存是程序员的职责。绝不能让下面这样的情形发生：
+
+```c++
+int* pointToNums = new int[5]; // initial allocation 
+// use pointToNums 
+... 
+// forget to release using delete[] pointToNums; 
+... 
+// make another allocation and overwrite 
+pointToNums = new int[10]; // leaks the previously allocated memory
+```
+
+2）指针指向无效的内存单元
+
+使用运算符*对指针解除引用，以访问指向的值时，务必确保指针指向了有效的内存单元，否则程序要么崩溃，要么行为不端。这看起来合乎逻辑，但一个非常常见的导致应用程序崩溃的原因就是无效指针。指针无效的原因很多，**但主要归结于糟糕的内存管理**。
+
+下面演示了一种导致指针无效的典型情形。
+
+在存储布尔值的程序中错误地使用指针
+
+```c++
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: // uninitialized pointer (bad) 
+ 6: bool* isSunny; 
+ 7: 
+ 8: cout << "Is it sunny (y/n)? "; 
+ 9: char userInput = 'y'; 
+10: cin >> userInput; 
+11: 
+12: if (userInput == 'y') 
+13: { 
+14: isSunny = new bool; 
+15: *isSunny = true; 
+16: } 
+17: 
+18: // isSunny contains invalid value if user entered 'n'
+19: cout << "Boolean flag sunny says: " << *isSunny << endl; 
+20: 
+21: // delete being invoked also when new wasn't 
+22: delete isSunny; 
+23: 
+24: return 0; 
+25: }
+```
+
+```c++
+Is it sunny (y/n)? y 
+Boolean flag sunny says: 1 
+再次运行的输出：
+Is it sunny (y/n)? n 
+<CRASH!>
+```
+
+这个程序的问题很多，有些已通过注释指出了。第 14 行分配内存并将其赋给指针，但这行代码仅在用户按 y（表示 yes）时才会执行。用户提供其他输入时，该 if 块都不会执行，因此指针 isSunny 无效。第二次运行时，用户按 n，导致应用程序崩溃。因为 isSunny **包含无效的内存地址**，而第 19 行对这个无效的指针解除引用，导致应用程序崩溃。
+
+同样，**第 22 行对这个指针调用 delete，但并未使用 new 分配这个指针**，这也是大错特错。如果有指针的多个拷贝，只需对其中一个调用 delete（应避免指针拷贝满天飞）。
+
+要让这个程序更好，更安全，更稳定，应对指针进行初始化，**确定指针有效后再使用并只释放指针一次**（且仅当指针有效时才释放）
+
+指针释放的含义：释放掉的指针变量表示的是该**指针变量指向的内存空间已经不由该程序占用，系统可以将其回收并用做他途**。指针变量指向的内存地址当然是不变的，只是它已经不会再被这个程序使用。当然可以通过new重新分配，但此时指针变量的值（即指针指向的地址）会发生改变。
+
+3）悬浮指针（也叫迷途或失控指针）
+
+使用 delete 释放后，任何有效指针都将无效。不应再使用。
+
+为避免这种问题，很多程序员在初始化指针或释放指针后将其设置为 NULL，并在使用运算符*对指针解除引用前检查它是否有效（将其与 NULL 比较）。
+
+对前面的代码进行修正
+
+更安全的指针编程
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: cout << "Is it sunny (y/n)? "; 
+ 6: char userInput = 'y'; 
+ 7: cin >> userInput; 
+ 8: 
+ 9: // declare pointer and initialize 
+10: bool* const isSunny = new bool;
+11: *isSunny = true; 
+12: 
+13: if (userInput == 'n') 
+14: 	*isSunny = false; 
+15: 
+16: cout << "Boolean flag sunny says: " << *isSunny << endl; 
+17: 
+18: // release valid memory 
+19: delete isSunny; 
+20: 
+21: return 0; 
+22: }
+```
+
+做了细微的修改，使得无论用户如何输入，代码都更安全。注意到在第 10 行声明指针的同时，让它指向了一个有效的内存地址。我们使用了 const 来确保指针指向的数据是可以修改的，但指针的值（包含的地址）是固定的（不可修改）。我们还将指针指向的值初始化为 true，如第 11 行所示。这种数据初始化并不能提高程序的稳定性，但可提高输出的可读性。这些步骤确保不管用户如何输入，这个指针在程序运行期间始终有效，可在第 19 行安全地将其释放。
+
+4）检查使用 new 发出的分配请求是否得到满足
+
+在前面的代码中，我们都假定 new 将返回一个指向内存块的有效指针。事实上，除非请求分配的内存量特大，或系统处于临界状态，可供使用的内存很少，否则 new 一般都能成功。有些应用程序需要请求分配大块的内存（如数据库应用程序），因此最好不要假定内存分配能够成功。C++提供了两种确认指针有效的方法，默认方法是使用异常（这也是前面一直使用的方法），即如果内存分配失败，将引发 std::bad_alloc 异常。这导致应用程序中断执行，除非您提供了异常处理程序，否则应用程序将崩溃，并显示一条类似于“异常未处理”的消息。
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: // remove the try-catch block to see this application crash 
+ 4: int main() 
+ 5: {
+ 6: try 
+ 7: { 
+ 8: // Request a LOT of memory! 
+ 9: int* pointsToManyNums = new int [0x1fffffff]; 
+10: // Use the allocated memory 
+11: 
+12: delete[] pointsToManyNums; 
+13: } 
+14: catch (bad_alloc) 
+15: { 
+16: cout << "Memory allocation failed. Ending program" << endl; 
+17: } 
+18: return 0; 
+19: }
+```
+
+当内存分配导致程序无法正常执行时，try-catch 异常处理结构让程序能够向用户指出这一点，再正常退出。
+
+不想依赖于异常的程序员可使用 new 变种 **new(nothrow)**，这个变种在内存分配失败时不引发异常，而返回 NULL，让您能够在使用指针前检查其有效性
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: int main() 
+ 4: { 
+ 5: // Request LOTS of memory space, use nothrow
+ 6: int* pointsToManyNums = new(nothrow) int [0x1fffffff]; 
+ 7: 
+ 8: if (pointsToManyNums) // check pointsToManyNums != NULL 
+ 9: { 
+10: // Use the allocated memory 
+11: delete[] pointsToManyNums; 
+12: } 
+13: else 
+14: cout << "Memory allocation failed. Ending program" << endl; 
+15: 
+16: return 0; 
+17: }
+// 输出
+Memory allocation failed. Ending program
+```
+
+总结：指针编程最佳实践
+
+指针不同于引用，可能为 NULL 或无效，因此使用前必须核实它们是有效的。
+
+**应该** 
+
+务必初始化指针变量，否则它将包含垃圾值。
+
+这些垃圾值被解读为地址，但您的应用程序并未获得访问这些地方的授权。如果不能将指针初始化为new 返回的有效地址，可将其初始化为 NULL。
+
+务必仅在指针有效时才使用它，否则程序可能崩溃。
+
+对于使用 new 分配的内存，一定要记得使用delete 进行释放，否则应用程序将泄露内存，进而降低系统的性能。
+
+**不应该**
+
+使用 delete 释放内存块或指针后，不要访问它。
+
+不要对同一个内存地址调用 delete 多次。
+
+使用完动态分配的内存块后，别忘了对其调用delete，以免泄露内存。
+
+> 补充：将整数直接赋给了指针，这将把指针包含的内存地址改为相应的整数值（16进制形式）
+
+#### 4.引用
+
+引用是变量的别名。声明引用时，需要将其初始化为一个变量，因此引用只是另一种访问相应变量存储的数据的方式。
+
+1）是什么让引用很有用
+
+引用让您能够访问相应变量所在的内存单元，这使得编写函数时引用很有用。第 7 章介绍过，典型的函数声明类似于下面这样：
+
+```c++
+ReturnType DoSomething(Type parameter); 
+
+调用函数 DoSomething( )的代码类似于下面这样：
+
+ReturnType Result = DoSomething(argument); // function call 
+```
+
+上述代码导致将 argument 的值复制给 Parameter，再被函数 DoSomething( )使用。如果 argument占用了大量内存，这个复制步骤的开销将很大。同样，当 DoSomething( )返回值时，这个值被复制给Result。**如果能避免这些复制步骤，让函数直接使用调用者栈中的数据就太好了**。为此，可使用引用。
+
+可避免复制步骤的函数版本类似于下面这样：
+
+ReturnType DoSomething(Type& parameter); // note the reference& 
+
+调用该函数的代码类似于下面这样：
+
+ReturnType Result = DoSomething(argument); 
+
+2）将关键字const用于引用
+
+可能需要禁止通过引用修改它指向的变量的值，为此可在声明引用时使用关键字 const：
+
+```c++
+int original = 30; 
+const int& constRef = original; 
+constRef = 40; // Not allowed: constRef can’t change value in original 
+int& ref2 = constRef; // Not allowed: ref2 is not const
+const int& constRef2 = constRef; // OK
+```
+
+3）按引用向函数传递参数
+
+让被调用的函数直接使用调用函数栈时，确保被调用函数不能修改调用函数中的变量很重要。为此，可将引用声明为 const，const 引用参数不能用作左值，因此试图给它们赋值将无法通过编译。
+
+```c++
+0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: void GetSquare(const int& number, int& result) 
+ 4: { 
+ 5: result = number*number; 
+ 6: } 
+ 7: 
+ 8: int main() 
+ 9: { 
+10: cout << "Enter a number you wish to square: "; 
+11: int number = 0; 
+12: cin >> number; 
+13: 
+14: int square = 0; 
+15: GetSquare(number, square); 
+16: cout << number << "^2 = " << square << endl; 
+17: 
+18: return 0; 
+19: }
+```
+
+这里使用了两个参数，一个用于接受输入，另一个用于存储运算结果。为禁止修改传入的值，必须使用关键字 const 将其声明为 const 引用，如第 3 行所示。这让 number 自动变为输入参数—其值不能修改的参数。
+
+您可以尝试修改第 5 行，传一个参数的做法那样返回平方值：
+
+number *= number; 
+
+这将导致编译错误，指出 const 值不能修改。**这说明 const 引用将参数标识为输入参数，并禁止对其进行修改**。乍一看，这可能微不足道，但在多名程序员合作编程时，编写第一个版本的人和改进的人可能不同，**通过使用 const 引用可提高编程质量**。
+
+总结：将参数传递给函数时，引用可很好地替代指针，因为引用总是有效的。学习了 const 指针和 const 引用，知道声明函数时应尽可能提高参数的 const 程度。
+
+### 习题
+
+#### 1.我声明了两个指针：
+
+int* pointToAnInt = new int; 
+
+int* pCopy = pointToAnInt; 
+
+为了释放内存，是否需要对它们都调用 delete？
+
+答：这样做是错误的。对 new 返回的地址，只能调用 delete 一次。另外，**最好避免让两个指针指向相同的地址，因为对其中一个调用 delete 将导致另一个无效**。另外，编写程序时，应避免使用有效性不确定的指针。
+
+#### 2.下面是我编写的面积计算函数的两个版本，请问哪个版本更好？
+
+void CalculateArea (const double* const ptrRadius, double* const 
+
+ptrArea); 
+
+void CalculateArea (const double& radius, double& area); 
+
+答：使用引用的版本更好，因为引用不可能无效，而指针可能无效。另外，第二个版本也更简单。
+
+#### 3.我编写了如下代码，我知道，由于 const 声明，我不能使用指针 pointToAnInt 来修改变量 number 的值。我可以将pointToAnInt 赋给一个非 const 指针，再使用该指针来操纵变量 number 的值吗？
+
+int number = 30; 
+
+const int* pointToAnInt = &number; 
+
+答：不能，**您不能修改指针的 const 程度**：
+
+int* pAnother = pointToAnInt; // cannot assign pointer to const to a non-const 
+
+另外，如果编译器允许这样做，将能轻松地突破 const 引用的限制：不能修改它指向的数据。
+
+#### 4.为何要按引用向函数传递值？
+
+答：可以不这样做，只要对程序性能影响不大。然而，如果函数接受非常大的对象，则按值传递的开销将非常大，通过使用引用，**可极大地提高函数调用的效率**。别忘了将 const 用于引用参数，除非函数需要将结果存储在参数中。
+
+#### 5.下面的两个声明有何不同？
+
+int myNumbers[100]; 
+
+int* myArrays[100]; 
+
+答：myNumbers 是一个 int 数组，它指向这样的内存单元的开头，即其中存储了 100 个整数。它是静态的，可替换如下代码：
+
+```c++
+int* myNumbers = new int [100]; // dynamically allocated array use myNumbers 
+
+delete[] myNumbers; 
+```
+
+而 myArrays 是一个包含 100 个元素的指针数组，其中的每个指针都可指向 int 或 int 数组。
+
+6.查错：下面的代码有何错误？
+
+```c++
+#include <iostream> 
+using namespace std; 
+int main() 
+{ 
+ int pointToAnInt = new int; 
+ int* pNumberCopy = pointToAnInt; 
+ *pNumberCopy = 30; 
+ cout << *pointToAnInt; 
+ delete pNumberCopy; 
+ delete pointToAnInt; 
+ return 0; 
+}
+```
+
+1）第一句，"int*"类型的值不能用于初始化"int"类型的实体；
+
+2）第二句，"int"类型的值不能用于初始化"int*"类型的实体；
+
+3）"*"的操作数必须是指针
+
+4）第二个delete不行，释放的必须是对象类型的指针；如果两个指针指向同一个内存区域，不能对该内存地址调用 delete 两次。
