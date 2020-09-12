@@ -1470,3 +1470,119 @@ public:
 }; 
 ```
 
+9）析构函数
+
+每当对象不再在作用域内或通过 delete 被删除进而被销毁时，都将调用析构函数。这使得析构函数成为重置变量以及释放动态分配的内存和其他资源的理想场所。
+
+使用 char*缓冲区时，您必须自己管理内存分配和释放，因此本书建议不要使用它们，而使用std::string。std::string 等工具都是类，它们充分利用了构造函数和析构函数，还有将在第 12 章介绍的运算符，让您无需考虑分配和释放等内存管理工作。
+
+接下来的程序所示的类 MyString 在构造函数中为一个字符串分配内存，并在析构函数中释放它。
+
+一个简单的类，它封装了字符缓冲区并通过析构函数释放它
+
+```c++
+ 0: #include <iostream> 
+ 1: #include <string.h> 
+ 2: using namespace std; 
+ 3: class MyString 
+ 4: { 
+ 5: private: 
+ 6: char* buffer;
+  7: 
+ 8: public: 
+ 9: MyString(const char* initString) // constructor 
+10: { 
+11: if(initString != NULL) 
+12: { 
+13: buffer = new char [strlen(initString) + 1]; 
+14: strcpy(buffer, initString); 
+15: } 
+16: else 
+17: 	buffer = NULL; 
+18: } 
+19: 
+20: ~MyString() 
+21: { 
+22: cout << "Invoking destructor, clearing up" << endl; 
+23: if (buffer != NULL) 
+24: 	delete [] buffer; 
+25: } 
+26: 
+27: int GetLength() 
+28: { 
+29: return strlen(buffer); 
+30: } 
+31: 
+32: const char* GetString() 
+33: { 
+34: return buffer; 
+35: } 
+36: }; 
+37: 
+38: int main() 
+39: { 
+40: MyString sayHello("Hello from String Class"); 
+41: cout << "String buffer in sayHello is " << sayHello.GetLength(); 
+42: cout << " characters long" << endl; 
+43: 
+44: cout << "Buffer contains: " << sayHello.GetString() << endl; 
+45: }
+```
+
+```c++
+// 输出
+String buffer in sayHello is 23 characters long 
+Buffer contains: Hello from String Class 
+Invoking destructor, clearing up
+```
+
+这个类封装了一个 C 风格字符串（MyString::buffer），让您使用字符串时无需分配和释放内存。
+
+注意到在 main( )中，程序员无需调用 new 和 delete。MyString 类不仅对程序员隐藏了内存管理实现，还正确地释放了分配的内存。**main( )执行完毕时，将自动调用析构函数～MyString( )，输出证明了这一点—其中包含析构函数中 cout 语句的输出**。
+
+类更好地处理了字符串，这是析构函数的众多用途之一。在更智能地使用指针方面，析构函数也扮演了重要角色，第 26 章将演示这一点。
+
+**注意**：析构函数不能重载，每个类都只能有一个析构函数。如果您忘记了实现析构函数，编译器将创建一个伪（dummy）析构函数并调用它。伪析构函数为空，即不释放动态分配的内存。
+
+10）复制构造函数
+
+```c++
+复制构造函数确保下面的函数调用进行深复制：
+
+MyString sayHello("Hello from String Class"); 
+
+UseMyString(sayHello); 
+
+然而，如果您通过赋值进行复制时，结果如何呢？
+
+MyString overwrite("who cares? "); 
+
+overwrite = sayHello; 
+```
+
+由于您没有提供复制赋值运算符 operator=，编译器提供的默认复制赋值运算符将导致浅复制。
+
+复制赋值运算符将在第 12 章深入讨论。程序清单 12.8 是改进后的 MyString，它实现了复制赋值运算符：
+
+```c++
+MyString::operator= (const MyString& copySource) 
+{ 
+ //... copy assignment operator code 
+} 
+```
+
+注意：通过在复制构造函数声明中使用 const，可确保复制构造函数不会修改指向的源对象。另外，复制构造函数的参数必须按引用传递，否则复制构造函数将不断调用自己（每次复制都调用自己产生一个副本），直到耗尽系统的内存为止。
+
+注意事项：
+
+- 类包含原始指针成员（char *等）时，务必编写复制构造函数和复制赋值运算符。
+
+- 编写复制构造函数时，务必将接受源对象的参数声明为 const 引用。
+
+- 声明构造函数时务必考虑使用关键字 explicit，以避免隐式转换。
+
+- 务必将类成员声明为 std::string 和智能指针类（而不是原始指针），因为它们实现了复制构造函数，可减少您的工作量。
+- 除非万不得已，不要类成员声明为原始指针。
+
+MyString类包含原始指针成员char* buffer，这里使用它旨在阐述为何需要复制构造函数。如果您编写类时需要包含字符串成员，用于存储姓名等，应使用 std::string 而不是 char*。**在没有使用原始指针的情况下，您都不需要编写复制构造函数。这是因为编译器添加的默认复制构造函数将调用成员对象（如 std::string）的复制构造函数**。
+
