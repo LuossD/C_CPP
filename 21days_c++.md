@@ -1347,3 +1347,126 @@ int main()
 > new int [5] [4];//开辟一个存放二维整型数组(大小为5*4)的空间，返回首元素的地址 　　
 > float *p=new float (3.14159);//开辟一个存放单精度数的空间，并指定该实数的初值为3.14159，将返回的该空间的地址赋给指针变量p 　　
 > new运算符使用的一般格式为：new 类型(初值)。**用new分配数组空间时不能指定初值**。
+
+## 第九章.类和对象
+
+### 知识点
+
+1）封装指的是将数据以及使用它们的函数进行逻辑编组，这是面向对象编程的重要特征。
+
+2）类相当于蓝图（ 一个详细的、各部分完全协调的计划或行动规划。），仅声明类并不会对程序的执行产生影响。在程序执行阶段，对象是类的化身。要使用类的功能，通常需要创建其实例—对象，并通过对象访问成员方法和属性。
+
+3）就像可以为其他类型（如 int）动态分配内存一样，也可使用 new 为 Human 对象动态地分配内存：
+
+```c++
+int* pointsToNum = new int; // an integer allocated dynamically 
+
+delete pointsToNum; // de-allocating memory when done using 
+
+Human* firstWoman = new Human(); // dynamically allocated Human 
+// 注意后面有个括号
+delete firstWoman; // de-allocating memory 
+```
+
+4）实例化对象时，我们声明一个类型为相应类的变量。因此，对于对象名，我们采用前面一直用于变量名的骆驼拼写法，如 firstMan。
+
+5）如果对象是使用 new 在自由存储区中实例化的，或者有指向对象的指针，则可使用指针运算符（->）来访问成员属性和方法。->由一个连字符和大于号组成，也称箭头成员运算符，创建动态结构（或类）时，不能将成员运算符句点用于结构名，因为这种结构没有名称，只是知道它的地址。为此，c++专门为这种情况提供了这么一个运算符。
+
+6）构造函数可在类声明中实现，也可在类声明外实现。在类声明中实现（定义）构造函数的代码类似于下面这样：
+
+```c++
+class Human 
+{ 
+public: 
+ Human() 
+ { 
+ // constructor code here 
+ }
+ };
+```
+
+```c++
+class Human 
+{ 
+public: 
+ Human(); // constructor declaration 
+}; 
+// constructor implementation (definition) 
+Human::Human() 
+{ 
+ // constructor code here 
+}
+```
+
+::被称为作用域（名）解析运算符。例如，Human::dateOfBirth 指的是在 Human 类中声明的变量 dateOfBirth，而::dateOfBirth 表示全局作用域中的变量 dateOfBirth。
+
+7）**默认构造函数是调用时可不提供参数的构造函数，而并不一定是不接受任何参数的构造函数**。因此，下面的构造函数虽然有两个参数，但它们都有默认值，因此也是默认构造函数：
+
+```c++
+class Human 
+{ 
+private: 
+ string name; 
+ int age; 
+public: 
+ // default values for both parameters 
+ Human(string humansName = "Adam", int humansAge 
+= 25) 
+ {
+ name = humansName; 
+ age = humansAge; 
+ cout << "Overloaded constructor creates "; 
+ cout << name << " of age " << age; 
+ } 
+};
+因为实例化 Human 对象时仍可不提供任何参数：
+Human adam; // Human takes default name "Adam", 
+age 25
+```
+
+8）初始化列表由包含在括号中的**参数声明后面的冒号标识**，**冒号后面列出了各个成员变量及其初始值**。初始值可以是参数（如 humansName），也可以是固定的值。使用特定参数调用基类的构造函数时，初始化列表也很有用，这将在第 10 章讨论。
+
+下面的程序中，Human 类包含一个带初始化列表的默认构造函数，该默认构造函数的参数都有默认值
+
+```c++
+0: #include <iostream> 
+ 1: #include <string> 
+ 2: using namespace std; 
+ 3: 
+ 4: class Human 
+ 5: { 
+ 6: private: 
+ 7: int age; 
+ 8: string name; 
+ 9:
+ 10: public: 
+11: Human(string humansName = "Adam", int humansAge = 25) 
+12: :name(humansName), age(humansAge) 
+13: { 
+14: cout << "Constructed a human called " << name; 
+15: cout << ", " << age << " years old" << endl; 
+16: } 
+17: }; 
+18: 
+19: int main() 
+20: { 
+21: Human adam; 
+22: Human eve("Eve", 18); 
+23: 
+24: return 0; 
+25: }
+```
+
+注意：也可使用关键字 constexpr 将构造函数定义为常量表达式。在有助于提高性能的情况下，可在构造函数的声明中使用这个关键字，如下所示：
+
+```c++
+class Sample 
+{ 
+const char* someString; 
+public: 
+ constexpr Sample(const char* input) 
+ :someString(input) 
+ { // constructor code } 
+}; 
+```
+
