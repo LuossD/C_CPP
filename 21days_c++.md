@@ -361,7 +361,7 @@ int num2 = ++num1; // Prefix increment operator
 
 首先需要理解前缀和后缀之间的差别，这样才能选择合适的方式。使用后缀运算符时，**先将右值赋给左值，再将右值递增或递减**。这意味着在上述所有使用后缀运算符的代码中，num2 都为 num1 的旧值（执行递增或递减前的值）。前缀运算符的行为完全相反，即**先将右值递增或递减，再将结果赋给左值**。
 
-在下面的语句中，使用前缀还是后缀运算符对结果没有影响：
+在下面的**语句**中，使用前缀还是后缀运算符对结果没有影响：
 
 ```c++
 startValue++; // Is the same as…
@@ -817,7 +817,9 @@ int main(){
 
 nullptr是一个字面值常量，类型为std::nullptr_t,空指针常数可以转换为任意类型的指针类型。
 
-在c++中（void *）不能转化为任意类型的指针，即 int * p=(void*)是错误的，但int *p=nullptr是正确的，原因对于函数重载：若c++中 （void *）支持任意类型转换，函数重载时将出现问题下列代码中fun(NULL)将不能判断调用哪个函数
+那么问题又来了，我们从一开始学习C++的时候就被告诫C++是兼容C的，为什么对于NULL，C++却不完全兼容C呢？通过查找维基百科，才发现这其中的原因。简单地说，C++之所以做出这样的选择，根本原因和C++的函数重载机制有关。
+
+在c++中（void *）不能转换为任意类型的指针，即 int * p=(void*)是错误的，但int *p=nullptr是正确的，原因对于函数重载：若c++中 （void *）支持任意类型隐式转换，函数重载时将出现问题下列代码中fun(NULL)将不能判断调用哪个函数。**如果C++让NULL也支持void *的隐式类型转换，这样编译器就不知道应该调用哪一个函数**。
 
 ```c++
 void fun(int i){cout<<"1";};
@@ -828,6 +830,11 @@ fun(NULL);  //输出1，c++中NULL为整数0
 fun(nullptr);//输出2，nullptr 为空指针常量。是指针类型
 }
 ```
+
+如果你写char *p = (void *)0；编译时报错：
+
+cannot convert from 'void *' to 'char *'
+Conversion from 'void *' to pointer to non-'void' requires an explicit cast（显示类型转换）
 
 #### 2.动态内存分配
 
@@ -918,8 +925,14 @@ cout << b++; // 输出1
 cout << b++ << b << endl;// 输出1、1
 // cout << b << ' ' << b++ << endl; 输出2、1
 cout << b;// 输出2
-// ++是运算符，但是a++是表达式（表达式是由运算符和操作数组合而成的式子）
+// ++是运算符，但是a++是表达式（表达式是由运算符和操作数组合而成的式子，它产生一个值）
 ```
+
+> a = 5 和 a = 5; 有什么不一样吗？ 当然不仅仅是多了一个分号而已，这是两个不同的概念，前者是赋值表达式，而后者是赋值语句。
+>
+> 表达式是由运算符和操作数组合而成的式子，这个式子通过运算最终会得到一个结果，单独的这个结果是无法构成 c++ 的指令的，比如你在代码中写个单独占一行不加分号的 2+3 ，编译就会出错。这个表达式的运算结果必须和其他运算结合起来才有意义，比如用来给变量赋值，或者用来作为 if 或者 while 的条件，所以 a=5; 或者 if(a=5) ....; 就不会有问题，**这种由表达式构成的 c++ 语句我们就称为表达式语句，其典型的特征是结尾的分号**，因为分号是 c++ 语句的结束符。 
+>
+> 也就是说：**语句是可以单独执行的、能够产生实际效果的代码；而表达式则是包含在语句中，根据某种条件计算出一个值或得出某种结果，然后由语句去判断和处理的代码。**
 
 这里又get到一个知识点：
 
@@ -1352,6 +1365,8 @@ int main()
 
 ### 知识点
 
+**三种关键字出现的次数和先后次序都没有限制。成员变量的可访问范围由离它前面最近的那个访问范围说明符决定。**
+
 1）封装指的是将数据以及使用它们的函数进行逻辑编组，这是面向对象编程的重要特征。
 
 2）类相当于蓝图（ 一个详细的、各部分完全协调的计划或行动规划。），仅声明类并不会对程序的执行产生影响。在程序执行阶段，对象是类的化身。要使用类的功能，通常需要创建其实例—对象，并通过对象访问成员方法和属性。
@@ -1370,7 +1385,7 @@ delete firstWoman; // de-allocating memory
 
 4）实例化对象时，我们声明一个类型为相应类的变量。因此，对于对象名，我们采用前面一直用于变量名的骆驼拼写法，如 firstMan。
 
-5）如果对象是使用 new 在自由存储区中实例化的，或者有指向对象的指针，则可使用指针运算符（->）来访问成员属性和方法。->由一个连字符和大于号组成，也称箭头成员运算符，创建动态结构（或类）时，不能将成员运算符句点用于结构名，因为这种结构没有名称，只是知道它的地址。为此，c++专门为这种情况提供了这么一个运算符。
+5）如果对象是使用 new 在自由存储区中实例化的，或者有指向对象的指针，则可使用指针运算符（->）来访问成员属性和方法。->由一个连字符和大于号组成，也称**箭头成员运算符**，创建动态结构（或类）时，不能将成员运算符句点用于结构名，因为这种结构没有名称，只是知道它的地址。为此，c++专门为这种情况提供了这么一个运算符。
 
 6）构造函数可在类声明中实现，也可在类声明外实现。在类声明中实现（定义）构造函数的代码类似于下面这样：
 
@@ -1424,6 +1439,28 @@ Human adam; // Human takes default name "Adam",
 age 25
 ```
 
+> 补充：
+>
+> 在一个类中定义了全部是默认参数的构造函数后，不能再定义重载构造函数。例：
+>
+> ```c++
+> Box(int =10,int =10,int =10);        1
+> 
+> Box();                               2
+> 
+> Box(int,int);                        3
+> ```
+>
+> 若有以下定义语句：
+>
+> Box box1;                 //是调用上面的第一个默认参数的构造函数，还是第二个默认构造函数
+>
+> Box box2(15,30);          //是调用上面的第一个默认参数的构造函数，还是第三个构造函数
+>
+> 调用时就产生了歧义，不知道调用哪个。
+>
+> 系统提供的默认构造函数无参数代码为空，不做任何初始化工作。
+
 8）初始化列表由包含在括号中的**参数声明后面的冒号标识**，**冒号后面列出了各个成员变量及其初始值**。初始值可以是参数（如 humansName），也可以是固定的值。使用特定参数调用基类的构造函数时，初始化列表也很有用，这将在第 10 章讨论。
 
 下面的程序中，Human 类包含一个带初始化列表的默认构造函数，该默认构造函数的参数都有默认值
@@ -1470,7 +1507,7 @@ public:
 }; 
 ```
 
-9）析构函数
+#### 9）析构函数
 
 每当对象不再在作用域内或通过 delete 被删除进而被销毁时，都将调用析构函数。这使得析构函数成为重置变量以及释放动态分配的内存和其他资源的理想场所。
 
@@ -1544,7 +1581,7 @@ Invoking destructor, clearing up
 
 **注意**：析构函数不能重载，每个类都只能有一个析构函数。如果您忘记了实现析构函数，编译器将创建一个伪（dummy）析构函数并调用它。伪析构函数为空，即不释放动态分配的内存。
 
-10）复制构造函数
+#### 10）复制构造函数
 
 ```c++
 复制构造函数确保下面的函数调用进行深复制：
@@ -1586,3 +1623,241 @@ MyString::operator= (const MyString& copySource)
 
 MyString类包含原始指针成员char* buffer，这里使用它旨在阐述为何需要复制构造函数。如果您编写类时需要包含字符串成员，用于存储姓名等，应使用 std::string 而不是 char*。**在没有使用原始指针的情况下，您都不需要编写复制构造函数。这是因为编译器添加的默认复制构造函数将调用成员对象（如 std::string）的复制构造函数**。
 
+#### 11）不允许复制的类：
+
+```c++
+假设您需要模拟国家的政体。一个国家只能有一位总统，而 President 类面临如下风险：
+President ourPresident; 
+DoSomething(ourPresident); // duplicate created in passing by value 
+President clone; 
+clone = ourPresident; // duplicate via assignment
+```
+
+要禁止类对象被复制，可声明一个私有的复制构造函数。这确保函数调用DoSomething(OurPresident)无法通过编译。为禁止赋值，可声明一个私有的赋值运算符。
+
+无需给私有复制构造函数和私有赋值运算符提供实现，只需将它们声明为私有的就足以实现您的目标：确保 President 的对象是不可复制的。
+
+#### 12）只能有一个实例的单例类（单子模式）
+
+```c++
+//前面讨论的 President 类很不错，但存在一个缺陷：无法禁止通过实例化多个对象来创建多名总统：
+President One, Two, Three;
+```
+
+它使用私有构造函数、私有赋值运算符和静态实例成员。要创建单例类，关键字 static 必不可少。
+
+单例类 President，它禁止复制、赋值以及创建多个实例
+
+```c++
+ 0: #include <iostream>
+ 1: #include <string> 
+ 2: using namespace std; 
+ 3: 
+ 4: class President 
+ 5: { 
+ 6: private: 
+ 7: President() {}; // private default constructor 
+ 8: President(const President&); // private copy constructor 
+ 9: const President& operator=(const President&); // assignment operator 
+10: 
+11: string name; 
+12: 
+13: public: 
+14: static President& GetInstance() 
+15: { 
+16: // static objects are constructed only once 
+17: static President onlyInstance; 
+18: return onlyInstance; 
+19: } 
+20: 
+21: string GetName() 
+22: { return name; } 
+23: 
+24: void SetName(string InputName) 
+25: { name = InputName; } 
+26: }; 
+27: 
+28: int main() 
+29: { 
+30: President& onlyPresident = President::GetInstance(); 
+31: onlyPresident.SetName("Abraham Lincoln"); 
+32: 
+33: // uncomment lines to see how compile failures prohibit duplicates 
+34: // President second; // cannot access constructor 
+35: // President* third= new President(); // cannot access constructor 
+36: // President fourth = onlyPresident; // cannot access copy constructor 
+37: // onlyPresident = President::GetInstance(); // cannot access operator= 
+38: 
+39: cout << "The name of the President is: "; 
+40: cout << President::GetInstance().GetName() << endl; 
+41: 
+42: return 0; 
+43: }
+```
+
+注解：这里使用了C++11里提供的静态初始化器，即构造静态对象
+
+```c++
+Singleton& Singleton::getInstance() {
+    static Singleton instance;
+    return instance;
+}
+```
+
+它使用静态变量 onlyInstance 确保有且只有一个 President 实例。
+
+为更好地理解这一点，可以认为第 17 行只执行一次（静态初始化），因此 GetInstance( )返回唯一一个President 实例，而不管您如何频繁地调用 President:: GetInstance( )。
+
+#### 13）禁止在栈中实例化的类
+
+栈空间通常有限。如果您要编写一个数据库类，其内部结构包含数 TB 数据，**可能应该禁止在栈上实例化它，而只允许在自由存储区中创建其实例**。为此，关键在于将析构函数声明为私有的：
+
+```c++
+class MonsterDB 
+{ 
+private: 
+ ~MonsterDB(); // private destructor 
+ //... members that consume a huge amount of data 
+}; 
+通过声明私有的析构函数，可禁止像下面这样创建实例：
+int main() 
+{ 
+ MonsterDB myDatabase; // compile error 
+ // … more code 
+ return 0; 
+}
+```
+
+上述代码试图在栈上创建实例。退栈时，将弹出栈中的所有对象，因此编译器需要在 main( )末尾调用析构函数～MonsterDB()，但这个析构函数是私有的，即不可用，因此上述语句将导致编译错误。
+
+将析构函数声明为私有的并不能禁止在堆中实例化：
+
+```c++
+int main() 
+{ 
+ MonsterDB* myDatabase = new MonsterDB(); // no error 
+ // … more code 
+ return 0; 
+}
+```
+
+上述代码将导致内存泄露。由于在 main 中不能调用析构函数，因此也不能调用 delete。为了解决这种问题，需要在 MonsterDB 类中提供一个销毁实例的静态公有函数（作为类成员，它能够调用析构函数），如下程序所示。
+
+数据库类 MonsterDB，只能使用 new 在自由存储区中创建其对象
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: class MonsterDB 
+ 4: { 
+ 5: private: 
+ 6: ~MonsterDB() {}; // private destructor prevents instances on stack 
+ 7: 
+ 8: public: 
+ 9: static void DestroyInstance(MonsterDB* pInstance) 
+10: { 
+11: delete pInstance; // member can invoke private destructor 
+12: } 
+13: 
+14: void DoSomething() {} // sample empty member method 
+15: }; 
+16: 
+17: int main() 
+18: { 
+19: MonsterDB* myDB = new MonsterDB(); // on heap 
+20: myDB->DoSomething(); 
+21: 
+22: // uncomment next line to see compile failure 
+23: // delete myDB; // private destructor cannot be invoked 
+24: 
+25: // use static member to release memory 
+26: MonsterDB::DestroyInstance(myDB); 
+27: 
+28: return 0; 
+29: }
+```
+
+14）使用构造函数进行类型转换
+
+前面介绍过，可给类提供重载的构造函数，**即接受一个或多个参数的构造函数。这种构造函数常用于进行类型转换**（貌似都是单参数的，没见过多参数的形式）。请看下面的 Human 类，它包含一个将整数作为参数的重构构造函数：
+
+```c++
+class Human 
+{ 
+ int age; 
+public: 
+ Human(int humansAge): age(humansAge) {} 
+}; 
+// Function that takes a Human as a parameter 
+void DoSomething(Human person) 
+{ 
+ cout << "Human sent did something" << endl; 
+ return; 
+}
+```
+
+这个构造函数让您能够执行下面的转换：
+
+```c++
+Human kid(10); // convert integer in to a Human 
+
+DoSomething(kid); 
+```
+
+这样的转换构造函数让您能够执行隐式转换：
+
+```c++
+Human anotherKid = 11; // int converted to Human 
+
+DoSomething(10); // 10 converted to Human! 
+```
+
+函数 DoSothing(Human person)被声明为接受一个 Human（而不是 int）参数！前面的代码为何可行呢？这是因为编译器知道 Human 类包含一个将整数作为参数的构造函数，进而替您执行了隐式转换：将您提供的整数作为参数发送给这个构造函数，从而创建一个Human 对象。
+
+为避免隐式转换，可在声明构造函数时使用关键字 explicit：
+
+```c++
+class Human 
+{ 
+ int age; 
+public: 
+ explicit Human(int humansAge): age(humansAge) {} 
+}; 
+```
+
+并非必须使用关键字 explicit，但在很多情况下，这都是一种良好的编程实践。
+
+注意：运算符也存在隐式转换的问题，也可在运算符中使用关键字 explicit 来禁止隐式转换。编写第 12 章将介绍的运算符时，请注意使用关键字 explicit。
+
+15）this指针。调用静态方法时，不会隐式地传递 this 指针，因为静态函数不与类实例相关联，而由所有实例共享。要在静态函数中使用实例变量，应显式地声明一个形参，并将实参设置为 this 指针。
+
+16）将 sizeof( )用于类及其对象时，结果相同。**类占用的字节数在编译阶段就已确定**。用于类时，sizeof( )不考虑成员函数及其定义的局部变量。
+
+#### 17）共用体
+
+共用体是一种特殊的类，每次只有一个非静态数据成员处于活动状态。因此，共用体与类一样，可包含多个数据成员，但不同的是只能使用其中的一个。
+
+声明共用体：
+
+要声明共用体，可使用关键字 union，再在这个关键字后面指定共用体名称，然后在大括号内指定其数据成员：
+
+```c++
+union UnionName 
+{ 
+ Type1 member1; 
+ Type2 member2; 
+…
+ TypeN memberN; 
+};
+```
+
+要实例化并使用共用体，可像下面这样做：
+
+```c++
+UnionName unionObject; 
+
+unionObject.member2 = value; // choose member2 as the active member 
+```
+
+注意：与结构类似，**共用体的成员默认也是公有的，但不同的是，共用体不能继承**。另外，将 sizeof()用于共用体时，结果总是为共用体最大成员的长度，即便该成员并不处于活动状态。
