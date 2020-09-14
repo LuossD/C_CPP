@@ -1926,3 +1926,116 @@ public:
 > 在设计派生类时，对继承过来的成员变量的初始化工作也要由派生类的构造函数完成，但是大部分基类都有 private 属性的成员变量，它们在派生类中无法访问，更不能使用派生类的构造函数来初始化。
 >
 > 这种矛盾在[C++](http://c.biancheng.net/cplus/)继承中是普遍存在的，解决这个问题的思路是：**在派生类的构造函数中调用基类的构造函数**。
+
+#### 3）调用基类中被覆盖的方法
+
+派生类 Tuna 通过实现 Swim( )覆盖了 Fish 类的 Swim( )函数，其结果如下：
+
+```c++
+Tuna myDinner; 
+
+myDinner.Swim(); // will invoke Tuna::Swim() 
+```
+
+如果要在 main( )中调用 Fish::Swim( )，需要使用作用域解析运算符（::），如下所示：
+
+```c++
+myDinner.Fish::Swim(); // invokes Fish::Swim() using instance of Tuna 
+```
+
+#### 4）在派生类中调用隐藏的基类方法
+
+覆盖的一种极端情形是，Tuna::Swim( )可能隐藏 Fish::Swim( )的所有重载版本，使得调用这些重载版本会导致编译错误（因此称为被隐藏）。
+
+Tuna::Swim( )隐藏了重载方法 Fish::Swim(bool) 
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: class Fish 
+ 4: { 
+ 5: public: 
+ 6: void Swim() 
+ 7: { 
+ 8: cout << "Fish swims... !" << endl; 
+ 9: } 
+10: 
+11: void Swim(bool isFreshWaterFish) // overloaded version
+12: { 
+13: if (isFreshWaterFish) 
+14: 	cout << "Swims in lake" << endl; 
+15: else 
+16: 	cout << "Swims in sea" << endl; 
+17: } 
+18: }; 
+19: 
+20: class Tuna: public Fish 
+21: { 
+22: public: 
+23: void Swim() 
+24: { 
+25: cout << "Tuna swims real fast" << endl; 
+26: } 
+27: }; 
+28: 
+29: int main() 
+30: { 
+31: Tuna myDinner; 
+32: 
+33: cout << "About my food" << endl; 
+34: 
+35: // myDinner.Swim(false);//failure: Tuna::Swim() hides Fish::Swim(bool) 
+36: myDinner.Swim(); 
+37: 
+38: return 0; 
+39: }
+```
+
+解决方案1：在 main( )中使用作用域解析运算符（::）
+
+```c++
+myDinner.Fish::Swim(false);
+```
+
+解决方案 2：在 Tuna 类中，使用关键字 using 解除对 Fish::Swim( )的隐藏
+
+```c++
+class Tuna: public Fish 
+{ 
+public: 
+ using Fish::Swim; // unhide all Swim() methods in class Fish
+ void Swim() 
+ { 
+ cout << "Tuna swims real fast" << endl; 
+ } 
+};
+// 这样就可以直接调用myDinner.Swim(false);但是myDinner.Swim();还是调用派生类的函数，调用基类依然得用::。
+```
+
+解决方案 3：在 Tuna 类中，覆盖 Fish::Swim( )的所有重载版本（如果需要，可通过 Tuna::Fish(…)调用方法 Fish::Swim( )）
+
+```c++
+class Tuna: public Fish 
+{ 
+public: 
+ void Swim(bool isFreshWaterFish) 
+ { 
+ Fish::Swim(isFreshWaterFish); 
+ } 
+ void Swim() 
+ { 
+ cout << "Tuna swims real fast" << endl; 
+ } 
+};
+```
+
+#### 5）构造顺序
+
+如果 Tuna 类是从 Fish 类派生而来的，创建 Tuna 对象时，先调用 Tuna 的构造函数还是 Fish 的构造函数？另外，实例化对象时，成员属性（如 Fish::isFreshWaterFish）是调用构造函数之前还是之后实例化？好在实例化顺序已标准化，基类对象在派生类对象之前被实例化。
+
+因此，首先构造 Tuna 对象的Fish 部分，这样实例化 Tuna 部分时，成员属性（具体地说是 Fish 的保护和公有属性）已准备就绪，可以使用了。实例化 Fish 部分和 Tuna 部分时，**先实例化成员属性**（如Fish::isFreshWaterFish），**再调用构造函数，确保成员属性准备就绪，可供构造函数使用**。这也适用于 Tuna::Tuna( )。
+
+注意：如果继承的Fish里的成员是个类对象，就先调用这个成员类的构造函数，再调用Fish的构造函数，最后才是调用自身的构造函数。
+
+析构顺序与构造顺序刚好相反！
