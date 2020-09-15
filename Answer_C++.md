@@ -132,15 +132,15 @@ void main()
 > ```c++
 > class IntClass
 > {
->     private:
->         int value;
->     public:
->         //转换int的转换构造函数
->         IntClass(int intValue)
->         {
->             value = intValue;
->         }
->         int getValue() const { return value; }
+>  private:
+>      int value;
+>  public:
+>      //转换int的转换构造函数
+>      IntClass(int intValue)
+>      {
+>          value = intValue;
+>      }
+>      int getValue() const { return value; }
 > };
 > ```
 >
@@ -357,7 +357,7 @@ int main() {
 }
 ```
 
-**注解：静态变量定义时不给初始值，系统会默认设为0。**
+**注解：静态变量定义时不给初始值，系统会默认设为0，默认值由编译器决定。**
 
 这样就对了，因为给a分配了内存，所以可以访问静态成员变量a了。
 
@@ -379,3 +379,250 @@ class A {
 使用命令"g++ -c -o a.o a.cpp"通过编译。
 
 **对于类来说，new一个类对象不仅会分配内存，同时会调用构造函数进行初始化，所以类对象的定义和初始化总是关联在一起**。
+
+## 三.C++中，能不能delete空指针
+
+完全可以 . . . .
+
+可能有不少人对Delete删除空指针的用法不屑一顾 , 但在实际运用当中 , 
+
+却有不少人会犯类似的错误 , 最典型的如下:
+
+```c++
+if(pMyClass) //这里, pMyClass是指向某个类的指针 . .
+{
+  delete pMyClass ;
+} 
+```
+
+
+他们往往先判断一下指针是否为空 , 如果不为空 , 说明没有被删除 , 
+
+于是清空这个指针 . . .
+
+出发点和逻辑思维是好的 , 但是却毫无必要 . . .
+
+**因为实际上delete 本身会自动检查对象是否为空 .如果为空 , 就不做操作 . .** 
+
+所以直接用delete pMyClass 就可以了 . . .
+
+删除空指针当然也是同样道理 . .
+
+注意：
+
+```c++
+delete NULL 是有问题的，编译没通过
+// 提示：不能删除不是指针的对象，表达式必须是指向完整对象类型的指针
+char *p = NULL;
+
+delete p;
+```
+
+2.delete栈上的空间是不行的
+
+char *p = "1234";
+
+delete p;
+
+```c++
+  char *p = new char;
+  delete p;
+  delete p; // 不能删除两次,第一次delete p之后，p的地址并不是空，同一块内存释放两次是有问题的
+```
+
+3.最好的风格是：
+
+```c++
+ if(pMyClass) //这里, pMyClass是指向某个类的指针 . .
+ {
+   delete pMyClass ;
+   pMyClass = NULL; // 这句不能少
+ }
+```
+
+ 因为这段代码在一个函数中，避免函数被调用两次而引起问题
+
+## 四.静态成员函数详解
+
+普通成员函数可以访问所有成员（包括成员变量和成员函数），静态成员函数只能访问静态成员。
+
+**编译器在编译一个普通成员函数时，会隐式地增加一个形参 this，并把当前对象的地址赋值给 this**，所以普通成员函数只能在创建对象后通过对象来调用，因为它需要当前对象的地址。而静态成员函数可以通过类来直接调用，编译器不会为它增加形参 this，它不需要当前对象的地址，所以不管有没有创建对象，都可以调用静态成员函数。
+
+普通成员变量占用对象的内存，静态成员函数没有 this [指针](http://c.biancheng.net/c/80/)，不知道指向哪个对象，**无法访问对象的成员变量，也就是说静态成员函数不能访问普通成员变量，只能访问静态成员变量**。
+
+**普通成员函数必须通过对象才能调用**(类定义时没有给普通成员函数分配内存，只有类对象创建的时候才分配），而静态成员函数没有 this 指针，无法在函数体内部访问某个对象，所以不能调用普通成员函数，只能调用静态成员函数。
+
+静态成员函数与普通成员函数的根本区别在于：普通成员函数有 this 指针，可以访问类中的任意成员；而静态成员函数没有 this 指针，只能访问静态成员（包括静态成员变量和静态成员函数）。
+
+下面是一个完整的例子，该例通过静态成员函数来获得学生的总人数和总成绩：
+
+```c++
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Student{
+public:
+    Student(const string & name, int age, float score);
+    void show();
+public:  //声明静态成员函数
+    static int getTotal();
+    static float getPoints();
+private:
+    static int m_total;  //总人数
+    static float m_points;  //总成绩
+private:
+    char *m_name;
+    int m_age;
+    float m_score;
+};
+
+int Student::m_total = 0;
+float Student::m_points = 0.0;
+
+Student::Student(const string & name, int age, float score): m_name(name), m_age(age), m_score(score){
+    m_total++;
+    m_points += score;
+}
+void Student::show(){
+    cout<<m_name<<"的年龄是"<<m_age<<"，成绩是"<<m_score<<endl;
+}
+//定义静态成员函数
+int Student::getTotal(){
+    return m_total;
+}
+float Student::getPoints(){
+    return m_points;
+}
+
+int main(){
+    (new Student("小明", 15, 90.6)) -> show();
+    (new Student("李磊", 16, 80.5)) -> show();
+    (new Student("张华", 16, 99.0)) -> show();
+    (new Student("王康", 14, 60.8)) -> show();
+
+    int total = Student::getTotal();
+    float points = Student::getPoints();
+    cout<<"当前共有"<<total<<"名学生，总成绩是"<<points<<"，平均分是"<<points/total<<endl;
+
+    return 0;
+}
+```
+
+运行结果：
+小明的年龄是15，成绩是90.6
+李磊的年龄是16，成绩是80.5
+张华的年龄是16，成绩是99
+王康的年龄是14，成绩是60.8
+当前共有4名学生，总成绩是330.9，平均分是82.725
+
+------
+
+总人数 m_total 和总成绩 m_points **由各个对象累加得到，必须声明为 static 才能共享**；getTotal()、getPoints() 分别用来获取总人数和总成绩，为了访问 static 成员变量，我们将这两个函数也声明为 static。
+
+在[C++](http://c.biancheng.net/cplus/)中，静态成员函数的主要目的是访问静态成员。getTotal()、getPoints() **当然也可以声明为普通成员函数，但是它们都只对静态成员进行操作，加上 static 语义更加明确**。
+
+和静态成员变量类似，**静态成员函数在声明时要加 static，在定义时不能加 static。静态成员函数可以通过类来调用（一般都是这样做），也可以通过对象来调用**，上例仅仅演示了如何通过类来调用。
+
+## 五.如何在类外访问私有成员？
+
+1.通过公有的方法
+
+```c++
+    class A{
+    private :
+    	int a;
+    public:
+    	int Geta()
+    	{
+    		return a;
+    	}
+    };
+```
+
+2.指针访问
+
+```c++
+class A
+{
+public:
+	A() :a(0),b(0),c(0) {}
+public:
+	int a;
+	int Getb() { return b; };
+private:
+	int b;
+	int c;
+};
+int main()
+{
+	A a;
+	A* pa = &a;
+	cout << a.Get(); // 输出0
+	int* pc = (int*)((int)&a + 4); // (int)&a把a的地址强制转换成十进制的整型,内存地址虽然是用十六进制表示的，反映到十进制也是一样，以字节为单位进行增减，所以整型为4个字节，那与它相邻的地址即为它的地址的数值加上4。
+	*pc = 10;
+	cout << a.Get(); // 输出10
+	system("pause");
+	return 0;
+}
+```
+
+通过此例也可以发现类对象包括结构体与数组有类似之处，它们的名字取地址的值都与其首元素地址相同，当然可能也不绝对，只是这个例子反映的是这样。
+
+## 六.C++中空类占一字节原因详解
+
+**C++中空类占位问题**
+
+  在C++中空类会占一个字节，这是为了让对象的实例能够相互区别。具体来说，**空类同样可以被实例化，并且每个实例在内存中都有独一无二的地址，因此，编译器会给空类隐含加上一个字节**，这样空类实例化之后就会拥有独一无二的内存地址。如果没有这一个字节的占位，那么空类就无所谓实例化了，**因为实例化的过程就是在内存中分配一块地址**。
+
+  注意：当该空白类作为基类时，该类的大小就优化为0了，这就是所谓的空白基类最优化。
+
+```c++
+#include<iostream>
+using namespace std;
+class test
+{
+};
+class derive :public test
+{
+	private:
+		int a;
+};
+int main()
+{
+	test a, b;
+	cout << "sizeof(test): " << sizeof(test) << endl; // 1，同样如果test里包含一个静态数据成员，其大小依然为1
+    cout << "sizeof(derive): " << sizeof(derive) << endl; // 4,即派生类大小不会加那个1的大小
+	cout << "addr of a: " << &a << endl;
+	cout << "addr of b: " << &b << endl;
+	system("pause");
+	return 0;
+}
+```
+
+注意：空白基类最优化无法被施加于多重继承上只适合单一继承。我测试了好像是这样，继承一个空白类一个包含一个整型的数据成员，自身一个整型数据，大小是12字节。
+
+## 七.C++类内初始化
+
+C++11的类内初始化允许非static成员的初始化，可以用{}或=号。，在之前类内初始化是不允许的。
+
+```c++
+class A{
+    static const int a = 7; //C++98允许
+    int b = 8; //C++11允许，而98不允许
+}
+```
+
+构造函数的初始化列表与类内成员初始化没有谁好谁不好，谁来替代谁，两种方法可相互补充使用。类内初始化有一些好处：
+
+1、当你有多个构造函数时，如果使用初始化列表，每个构造函数都要写一遍，烦人不说，同时产生重复代码，修改易漏。如果把这些成员都用类内初始化，初始化列表就不用再列出它们了。
+
+2、类内初始化，成员之间的顺序是隐式的，会有些便利。如果使用初始化列表，它是有顺序之分的，顺序不对，编译器会警告。
+
+3、对于简单的类或结构，没有构造函数的，可以直接用类内初始化在成员声明的同时直接初始化，方便。
+
+对于一些类类型的成员初始化要小心，**如果成员之间有依赖关系，这时使用初始化列表显式的指明这些成员的构造（初始化）顺序是比较稳妥的**。
+
+如果成员已经使用了类内初始化，**但在构造函数的初始化列表又列出来，编译器以后者优先，类内初始化会被忽略**。如果某些成员使用不同构造函数时，会有不同的默认值，这种情况就要用初始化列表。同时，其它成员依然可以使用类内初始化。
+
+类内初始化绝对不是解决什么内置类型默认初始化时未定义问题。面向对象编程一个很重要的原则，程序员有责任要保证对象产生出来，它的每个成员都必须是初始化的，这是设计问题以及基本意识，无论是使用哪种方法初始化。

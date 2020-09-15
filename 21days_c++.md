@@ -1883,6 +1883,18 @@ unionObject.member2 = value; // choose member2 as the active member
 
 将属性声明为 protected时，相当于允许派生类和友元类访问它，但禁止在继承层次结构外部（包括 main( )）访问它。
 
+类成员的访问权限由高到低依次为 public --> protected --> private。再来补充一下 protected。**protected 成员和 private 成员类似，也不能通过对象访问**。但是当存在继承关系时，protected 和 private 就不一样了：基类中的 protected 成员可以在派生类中使用，而基类中的 private 成员不能在派生类中使用，下面是详细讲解。
+
+- 继承方式中的 public、protected、private 是用来指明基类成员在派生类中的最高访问权限的。
+
+- 如果希望基类的成员能够被派生类继承并且毫无障碍地使用，那么这些成员只能声明为 public 或 protected；**只有那些不希望在派生类中使用的成员才声明为 private**。
+
+- 如果希望基类的成员既不向外暴露（不能通过对象访问），还能在派生类中使用，那么只能声明为 protected。
+
+**注意**：我们这里说的是基类的 private 成员不能在派生类中使用，并没有说基类的 private 成员不能被继承。**实际上，基类的 private 成员是能够被继承的，并且（成员变量）会占用派生类对象的内存，它只是在派生类中不可见，导致无法使用罢了**。private 成员的这种特性，能够很好的对派生类隐藏基类的实现，以体现面向对象的封装性。
+
+由于 private 和 protected 继承方式会改变基类成员在派生类中的访问权限，导致继承关系复杂，所以实际开发中我们一般使用 public。
+
 #### 2）基类初始化——向基类传递参数
 
 如果基类包含重载的构造函数，需要在实例化时给它提供实参，该如何办呢？创建派生对象时将如何实例化这样的基类？方法是使用初始化列表，并通过派生类的构造函数调用合适的基类构造函数，如下面的代码所示：
@@ -2039,3 +2051,117 @@ public:
 注意：如果继承的Fish里的成员是个类对象，就先调用这个成员类的构造函数，再调用Fish的构造函数，最后才是调用自身的构造函数。
 
 析构顺序与构造顺序刚好相反！
+
+#### 6）改变访问权限：
+
+使用 using 关键字可以**改变基类成员在派生类中的访问权限**，例如将 public 改为 private、将 protected 改为 public。
+
+注意：**using 只能改变基类中 public 和 protected 成员的访问权限，不能改变 private 成员的访问权限，因为基类中 private 成员在派生类中是不可见的，根本不能使用，所以基类中的 private 成员在派生类中无论如何都不能访问**。
+
+```c++
+//基类People
+class People {
+public:
+    void show();
+protected:
+    char *m_name;
+    int m_age;
+};
+void People::show() {
+    cout << m_name << "的年龄是" << m_age << endl;
+}
+//派生类Student
+class Student : public People {
+public:
+    void learning();
+public:
+    using People::m_name;  //将protected改为public
+    using People::m_age;  //将protected改为public
+    float m_score;
+private:
+    using People::show;  //将public改为private
+};
+void Student::learning() {
+    cout << "我是" << m_name << "，今年" << m_age << "岁，这次考了" << m_score << "分！" << endl;
+}
+```
+
+using前面也提到了，它还有一个很重要的作用就是为了避免隐藏基类的方法。
+
+#### 7）关于private
+
+仅当必要时才使用私有或保护继承。
+
+对于大多数使用私有继承的情形（如 Car 和 Motor 之间的私有继承），更好的选择是，将基类对象作为派生类的一个成员属性。
+
+将 Motor 对象作为 Car 类的私有成员被称为**组合（composition）或聚合**（aggergation），
+
+这样的 Car 类类似于下面这样：
+
+```c++
+class Car 
+{ 
+private: 
+ Motor heartOfCar; 
+public: 
+ void Move() 
+ { 
+ heartOfCar.SwitchIgnition(); 
+ heartOfCar.PumpFuel(); 
+ heartOfCar.FireCylinders(); 
+ } 
+}; 
+```
+
+这是一种不错的设计，让您能够轻松地在 Car 类中添加 Motor 成员，而无需改变继承层次机构，也不用修改客户看到的设计。
+
+#### 8）切除问题
+
+如果程序员像下面这样做，结果将如何呢？
+
+```c++
+Derived objDerived; 
+Base objectBase = objDerived; 
+
+如果程序员像下面这样做，结果又将如何呢？
+
+void UseBase(Base input); 
+... 
+Derived objDerived; 
+UseBase(objDerived); // copy of objDerived will be sliced and sent 
+```
+
+它们都将 Derived 对象复制给 Base 对象，一个是通过显式地复制，另一个是通过传递参数。在这些情形下，编译器将只复制 objDerived 的 Base 部分，即不是整个对象。换句话说，Derived 的数据成员包含的信息将丢失。这种无意间裁减数据，导致 Derived 变成 Base 的行为称为切除（slicing）。
+
+要避免切除问题，不要按值传递参数，而应以指向基类的指针或 const 引用的方式传递。
+
+#### 9）使用final禁止继承
+
+从 C++11 起，编译器支持限定符 final。被声明为 final 的类不能用作基类。比如Platypus 类表示一种进化得很好的物种，因此您可能想将其声明为 final 的，从而禁止继承它。
+
+```c++
+class Platypus final: public Mammal, public Bird, public Reptile 
+{ 
+public: 
+ void Swim() 
+ { 
+ cout << "Platypus: Voila, I can swim!" << endl; 
+ } 
+};
+```
+
+除用于类外，还可将 final 用于成员函数来控制多态行为。
+
+**特别注意**：鸭嘴兽会游泳，但不属于鱼类。因此，在程序清单 10.10 中，没有仅为方便重用现有的Fish::Swim( )函数，而让 Platypus 也继承 Fish。**做设计决策时，别忘了公有继承应表示 is-a关系，因此不应为实现重用目标而不分青红皂白地使用公有继承**。可采取其他方式实现这种目标。
+
+几点需要注意的：
+
+要建立 is-a 关系，务必创建公有继承层次结构。
+
+要建立 has-a 关系，务必创建私有或保护继承层次结构。
+
+不要不分青红皂白地使用私有或公有继承，**因为这可能给应用程序的可扩展性带来架构瓶颈**。
+
+在派生类中，不要编写与基类方法同名但参数不同的方法，以免隐藏基类方法。
+
+9）如果继承时不写访问控制符，类的继承关系默认为私有。如果 Derived 是结构，继承关系将为公有。
