@@ -2165,3 +2165,78 @@ public:
 在派生类中，不要编写与基类方法同名但参数不同的方法，以免隐藏基类方法。
 
 9）如果继承时不写访问控制符，类的继承关系默认为私有。如果 Derived 是结构，继承关系将为公有。
+
+## 第十一章.多态
+
+1）在函数中通过基类指针调用运算符 delete 
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: class Fish 
+ 4: { 
+ 5: public: 
+ 6: Fish() 
+ 7: { 
+ 8: cout << "Constructed Fish" << endl; 
+ 9: } 
+10: ~Fish() 
+11: { 
+12: cout << "Destroyed Fish" << endl; 
+13: } 
+14: }; 
+15: 
+16: class Tuna:public Fish 
+17: { 
+18: public: 
+19: Tuna() 
+20: { 
+21: cout << "Constructed Tuna" << endl; 
+22: } 
+23: ~Tuna() 
+24: { 
+25: cout << "Destroyed Tuna" << endl; 
+26: } 
+27: }; 
+28: 
+29: void DeleteFishMemory(Fish* pFish) 
+30: { 
+31: delete pFish; 
+32: } 
+33: 
+34: int main() 
+35: { 
+36: cout << "Allocating a Tuna on the free store:" << endl; 
+37: Tuna* pTuna = new Tuna; 
+38: cout << "Deleting the Tuna: " << endl; 
+39: DeleteFishMemory(pTuna); 
+40: 
+41: cout << "Instantiating a Tuna on the stack:" << endl; 
+42: Tuna myDinner; 
+43: cout << "Automatic destruction as it goes out of scope: " << endl; 
+44: 
+45: return 0; 
+46: }
+```
+
+```c++
+// 输出
+Allocating a Tuna on the free store: 
+Constructed Fish 
+Constructed Tuna 
+Deleting the Tuna: 
+Destroyed Fish 
+Instantiating a Tuna on the stack: 
+Constructed Fish 
+Constructed Tuna 
+Automatic destruction as it goes out of scope: 
+Destroyed Tuna 
+Destroyed Fish
+```
+
+注意到由于使用了关键字 new，在自由存储区中构造了 Tuna和 Fish，但 delete 没有调用 Tuna 的析构函数，而只调用了 Fish 的析构函数；而构造和析构局部变量myDinner 时，调用了基类和派生类的构造函数和析构函数，这形成了鲜明的对比。
+
+对于使用 new 在自由存储区中实例化的派生类对象，**如果将其赋给基类指针，并通过该指针调用 delete，将不会调用派生类的析构函数。这可能导致资源未释放、内存泄露等问题，必须引起重视**。
+
+要避免这种问题，可将析构函数声明为虚函数。
