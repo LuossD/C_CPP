@@ -1461,7 +1461,7 @@ age 25
 >
 > 系统提供的默认构造函数无参数代码为空，不做任何初始化工作。
 
-8）初始化列表由包含在括号中的**参数声明后面的冒号标识**，**冒号后面列出了各个成员变量及其初始值**。初始值可以是参数（如 humansName），也可以是固定的值。使用特定参数调用基类的构造函数时，初始化列表也很有用，这将在第 10 章讨论。
+8）初始化列表由包含在括号中的**参数声明后面的冒号标识**，**冒号后面列出了各个成员变量及其初始值**。初始值可以是参数（如 humansName），**也可以是固定的值**。使用特定参数调用基类的构造函数时，初始化列表也很有用，这将在第 10 章讨论。
 
 下面的程序中，Human 类包含一个带初始化列表的默认构造函数，该默认构造函数的参数都有默认值
 
@@ -1897,7 +1897,7 @@ unionObject.member2 = value; // choose member2 as the active member
 
 #### 2）基类初始化——向基类传递参数
 
-如果基类包含重载的构造函数，需要在实例化时给它提供实参，该如何办呢？创建派生对象时将如何实例化这样的基类？方法是使用初始化列表，并通过派生类的构造函数调用合适的基类构造函数，如下面的代码所示：
+如果基类包含重载的构造函数，需要在实例化时给它提供实参，该如何办呢？创建派生对象时将如何实例化这样的基类？**方法是使用初始化列表**，并**通过派生类的构造函数调用合适的基类构造函数**，如下面的代码所示：
 
 ```c++
 class Base 
@@ -2048,7 +2048,7 @@ public:
 
 因此，首先构造 Tuna 对象的Fish 部分，这样实例化 Tuna 部分时，成员属性（具体地说是 Fish 的保护和公有属性）已准备就绪，可以使用了。实例化 Fish 部分和 Tuna 部分时，**先实例化成员属性**（如Fish::isFreshWaterFish），**再调用构造函数，确保成员属性准备就绪，可供构造函数使用**。这也适用于 Tuna::Tuna( )。
 
-注意：如果继承的Fish里的成员是个类对象，就先调用这个成员类的构造函数，再调用Fish的构造函数，最后才是调用自身的构造函数。
+注意：如果继承的Fish里的成员是个类对象，**就先调用这个成员类的构造函数，再调用Fish的构造函数，最后才是调用自身的构造函数**。
 
 析构顺序与构造顺序刚好相反！
 
@@ -2247,6 +2247,280 @@ Destroyed Fish
 
 **不能实例化的基类被称为抽象基类**，这样的基类只有一个用途，那就是从它派生出其他类。在 C++中，要创建抽象基类，可声明纯虚函数。
 
+> c++primer5:含有（或者未经覆盖直接继承）纯虚函数的类是抽象基类。
+>
+> 所以可以这样说：**只要类至少包含一个纯虚函数**，它就是抽象基类，而**不管它是否包含其他定义完整的函数和属性**。
+
 编译器不允许您创建抽象基类（ABC）Fish 的实例。编译器要求您创建具体类（如 Tuna）的对象，这与现实世界一致（现实世界没有fish这个具体的东西，只有它的实例，fish是我们人为抽象出来的）。虽然不能实例化抽象基类，但是可将指针或引用的类型指定为抽象基类。
 
 抽象基类提供了一种非常好的机制，让您能够声明所有派生类都必须实现的函数（即指定派生类的接口）。如果 Trout 类从Fish 类派生而来，但没有实现 Trout::Swim( )，将无法通过编译。抽象基类要求派生类必须提供虚方法 DoSomething( )的实现。
+
+#### 3）虚函数表指针
+
+编译器见到这种继承层次结构后，知道 Base 定义了一些虚函数，并在 Derived 中覆盖了它们。在这种情况下，编译器将为实现了虚函数的基类和覆盖了虚函数的派生类分别创建一个虚函数表（Virtual Function Table，VFT）。换句话说，Base 和 Derived 类都将有自己的虚函数表。实例化这些类的对象时，将创建一个隐藏的指针（我们称之为 VFT*），它指向相应的 VFT。可将 VFT 视为一个包含函数指针的静态数组，其中每个指针都指向相应的虚函数。
+
+当派生类对象objDerived 传递给了基类对象 objBase，进而被解读为一个 Base 实例，但该实例的VFT 指针仍指向 Derived 类的虚函数表，因此通过该 VTF 执行的是 Derived::Func( )。
+
+对两个相同的类（一个包含虚函数，另一个不包含）进行比较，证明确实存在隐藏的虚函数表指针
+
+```c++
+ #include <iostream>
+ using namespace std;
+
+ class Base
+ {
+	 int a, b;
+ public:
+	 virtual void DoSomething() {}
+	 virtual void Doanother() {}
+ };
+ class SimpleClass:public Base
+ {
+ int a, b;
+ public:
+ void DoSomething() {}
+ void Doanother() {}
+ };
+ 
+ int main()
+ {
+ cout << "sizeof(SimpleClass) = " << sizeof(SimpleClass) << endl;
+ cout << "sizeof(Base) = " << sizeof(Base) << endl;
+
+ return 0;
+ }
+// 不写继承时，输出8、12，即写了虚函数的类多了一个虚函数表指针，不管写了多少个虚函数，只有一个虚函数表指针，指向表头，至于怎么操纵的其它的虚函数，我猜测是和操纵数组的形式一样，有表头指针了后面的都很好操作。
+//写继承时，输出20、12，就是继承的基类的内存加自身所以一共20字节。
+```
+
+注意：C++关键字 virtual 的含义随上下文而异（我想这样做的目的很可能是为了省事），对其含义总结如下：
+
+**在函数声明中，virtual 意味着当基类指针指向派生对象时，通过它可调用派生类的相应函数**。
+
+从 Base 类派生出 Derived1 和 Derived2 类时，如果使用了关键字 virtual，则意味着再从Derived1 和 Derived2 派生出 Derived3 时，每个 Derived3 实例只包含一个 Base的副本。
+
+也就是说，关键字 virtual 被用于实现两个不同的概念。
+
+#### 4）表明覆盖意图的限定符override
+
+```c++
+前面的基类 Fish 都包含虚函数 Swim()，如下面的代码所示：
+class Fish 
+{ 
+public: 
+ virtual void Swim() 
+ { 
+ cout << "Fish swims!" << endl; 
+ } 
+};
+```
+
+```c++
+假设派生类 Tuna 要定义函数 Swim()，但特征标稍微不同—程序员原本想覆盖 Fish::Swim()，
+但不小心插入了关键字 const，如下所示：
+class Tuna:public Fish 
+{ 
+public: 
+ void Swim() const 
+ { 
+ cout << "Tuna swims!" << endl; 
+ } 
+};
+```
+
+在这种情况下，函数 Tuna::Swim()实际上并不会覆盖 Fish::Swim()，这是因为 Tuna::Swim()包含const，导致它们的特征标不同。然而，这些代码能够通过编译，**导致程序员误以为他在 Tuna 类中成功地覆盖了函数 Swim()**。从 C++11 起，程序员可使用限定符 override 来核实被覆盖的函数在基类中是否被声明为虚的：
+
+```c++
+class Tuna:public Fish 
+{ 
+public: 
+ void Swim() const override // Error: no virtual fn with this sig in Fish 
+ // vs2019里提示:使用override声明的成员函数不能重写基类成员
+ { 
+ cout << "Tuna swims!" << endl; 
+ } 
+};
+```
+
+换而言之，override 提供了一种强大的途径，**让程序员能够明确地表达对基类的虚函数进行覆盖的意图**，进而让编译器做如下检查：
+
+• 基类函数是否是虚函数？
+
+• 基类中相应虚函数的特征标是否与派生类中被声明为 override 的函数完全相同？
+
+#### 5）使用final来禁止覆盖函数
+
+C++11 引入了限定符 final，这在第 10 章介绍过。被声明为 final 的类不能用作基类，同样，**对于被声明为 final 的虚函数，不能在派生类中进行覆盖**。
+
+因此，要在 Tuna 类中禁止进一步定制虚函数 Swim()，可像下面这样做：
+
+```c++
+class Tuna:public Fish 
+{ 
+public: 
+ // override Fish::Swim and make this final 
+ void Swim() override final 
+ { 
+ cout << "Tuna swims!" << endl; 
+ } 
+}; 
+```
+
+您可继承这个版本的 Tuna 类，但不能进一步覆盖函数 Swim()：
+
+```c++
+class BluefinTuna final:public Tuna 
+{ 
+public: 
+ void Swim() // Error: Swim() was final in Tuna, cannot override 
+ { 
+ } 
+}; 
+```
+
+#### 6）可将复制构造函数声明为虚函数吗？
+
+从技术上说，C++不支持虚复制构造函数。但如果能实现虚复制构造函数，则创建一个基类指针集合（如静态数组，其中的每个元素指向不同的派生类对象）：
+
+```c++
+// Tuna, Carp and Trout are classes that inherit public from base class Fish 
+Fish* pFishes[3]; 
+Fishes[0] = new Tuna(); 
+Fishes[1] = new Carp(); 
+Fishes[2] = new Trout(); 
+```
+
+并将其赋给另一个相同类型的数组时，虽然是通过 Fish 指针调用的复制构造函数，但将复制指向的派生类对象，并对其进行深复制。
+
+**然而，这只是一种美好的梦想。**
+
+根本不可能实现虚复制构造函数，**因为在基类方法声明中使用关键字 virtual 时，表示它将被派生类的实现覆盖**（当然，测试过了，**通过作用域解析法依然可以访问基类的虚函数**），这种多态行为是在运行阶段实现的。而构造函数只能创建固定类型的对象，不具备多态性，因此 C++不允许使用虚复制构造函数。虽然如此，但存在一种不错的解决方案，就是定义自己的克隆函数来实现上述目的：
+
+```c++
+class Fish 
+{ 
+public: 
+ virtual Fish* Clone() const = 0; // pure virtual function 
+}; 
+class Tuna:public Fish 
+{ 
+// ... other members 
+public: 
+ Tuna * Clone() const // virtual clone function 
+ { 
+ return new Tuna(*this); // return new Tuna that is a copy of this 
+ } 
+};
+```
+
+虚函数 Clone 模拟了虚复制构造函数，但需要显式地调用。
+
+<p align=center>Tuna 和 Carp 包含 Clone 函数，它们模拟了虚复制构造函数</p>
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: class Fish 
+ 4: { 
+ 5: public: 
+ 6: virtual Fish* Clone() = 0; 
+ 7: virtual void Swim() = 0; 
+ 8: virtual ~Fish() {}; 
+ 9: }; 
+10: 
+11: class Tuna: public Fish 
+12: { 
+13: public: 
+14: Fish* Clone() override 
+15: { 
+16: return new Tuna (*this); 
+17: } 
+18: 
+19: void Swim() override final 
+20: { 
+21: cout << "Tuna swims fast in the sea" << endl; 
+22: } 
+23: }; 
+24: 
+25: class BluefinTuna final:public Tuna 
+26: { 
+27: public: 
+28: Fish* Clone() override 
+29: { 
+30: return new BluefinTuna(*this); 
+31: } 
+32: 
+33: // Cannot override Tuna::Swim as it is "final" in Tuna 
+34: }; 
+35: 
+36: class Carp final: public Fish 
+37: { 
+38: Fish* Clone() override 
+39: { 
+40: return new Carp(*this); 
+41: } 
+42: void Swim() override final 
+43: { 
+44: cout << "Carp swims slow in the lake" << endl; 
+45: } 
+46: }; 
+47: 
+48: int main() 
+49: { 
+50: const int ARRAY_SIZE = 4; 
+51: 
+52: Fish* myFishes[ARRAY_SIZE] = {NULL}; 
+53: myFishes[0] = new Tuna(); 
+54: myFishes[1] = new Carp(); 
+55: myFishes[2] = new BluefinTuna(); 
+56: myFishes[3] = new Carp(); 
+57: 
+58: Fish* myNewFishes[ARRAY_SIZE]; 
+59: for (int index = 0; index < ARRAY_SIZE; ++index) 
+60: 	myNewFishes[index] = myFishes[index]->Clone(); 
+61: 
+62: // invoke a virtual method to check 
+63: for (int index = 0; index < ARRAY_SIZE; ++index) 
+64: 	myNewFishes[index]->Swim(); 
+65: 
+66: // memory cleanup 
+    // 务必记得释放指针，当然，这个可以在析构中实现，当然，析构可以直接是虚的，所以没什么难度
+67: for (int index = 0; index < ARRAY_SIZE; ++index) 
+68: { 
+69: delete myFishes[index]; 
+70: delete myNewFishes[index]; 
+71: } 
+72: 
+73: return 0; 
+74: }
+```
+
+```
+Tuna swims fast in the sea 
+Carp swims slow in the lake 
+Tuna swims fast in the sea 
+Carp swims slow in the lake
+```
+
+注意到 myFishes 数组能够存储不同类型的对象，这些对象都是从 Fish 派生而来的。这太酷了，因为本书前面的大部分数组包含的都是相同类型的数据，如 int。如果这还不够酷，您还可以在循环中使用虚函数 Fish::Clone 将其复制到另一个 Fish*数组（myNewFishes）中，如第 60 行所示。注意到这里的数组很小，只有 4 个元素，但即便数组长得多，复制逻辑也差别不大，只需调整循环结束条件即可。第 64 行进行了核实，它通过新数组的每个元素调用虚函数 Swim( )，以验证 Clone( )复制了整个派生类对象，而不仅仅是 Fish 部分。输出表明，确实像预期的那样复制了整个派生类对象。另外，注意到对 BluefinTuna 和 Tuna 实例调用 Swim()得到的输出相同，这是因为Tuna::Swim()被声明为 final，因此 BluefinTuna 不能覆盖 Swim()，所以编译器在您对 BluefinTuna 实例调用 Swim()时执行 Tuna::Swim()。
+
+### 习题
+
+#### 1）为什么C++默认的析构函数不是虚函数？
+
+C++默认的析构函数不是虚函数是因为虚函数需要额外的虚函数表和虚表指针，占用额外的内存。而对于不会被继承的类来说，其析构函数如果是虚函数，就会浪费内存。因此C++默认的析构函数不是虚函数，而是只有当需要当作父类时，设置为虚函数。
+
+#### 2）析构函数设为虚函数的作用是什么
+
+在类的继承中，如果有基类指针指向派生类，那么用基类指针delete时，如果不定义成虚函数，**派生类中派生的那部分无法析构**。
+
+#### 3）构造函数不能声明为虚函数的原因是什么
+
+> 1 构造一个对象的时候，必须知道对象的实际类型，而虚函数行为是在运行期间确定实际类型的。而在构造一个对象时，由于对象还未构造成功。编译器无法知道对象 的实际类型，是该类本身，还是该类的一个派生类，或是更深层次的派生类。无法确定。
+>
+> 2 虚函数的执行依赖于虚函数表。而虚函数表在构造函数中进行初始化工作，即初始化vptr，让他指向正确的虚函数表。而在构造对象期间，虚函数表还没有被初 始化，将无法进行。虚函数的意思就是开启动态绑定，程序会根据对象的动态类型来选择要调用的方法。然而在构造函数运行的时候，这个对象的动态类型还不完整，没有办法确定它到底是什么类型，故构造函数不能动态绑定。（动态绑定是根据对象的动态类型而不是函数名，在调用构造函数之前，这个对象根本就不存在，它怎么动态绑定？）编译器在调用基类的构造函数的时候并不知道你要构造的是一个基类的对象还是一个派生类的对象。
+>
+> 另外，不建议在构造函数和析构函数里面调用虚函数。
+>
+> https://blog.csdn.net/wk_bjut_edu_cn/article/details/80187658
