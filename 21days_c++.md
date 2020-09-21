@@ -2755,3 +2755,232 @@ Type& operator[](int Index) const;
 Type& operator[](int Index); 
 ```
 
+## 第十三章.类型转换运算符
+
+### 知识点
+
+#### 1）static_cast
+
+Derived* 转换为 Base* 被称为向上转换，无需使用任何显式类型转换运算符就能进行这种转换：
+
+将 Base* 转换为 Derived* 被称为向下转换，如果不使用显式类型转换运算符，就无法进行这种转换：
+
+```c++
+Derived objDerived; 
+
+Base* objBase = &objDerived; // Upcast -> ok! 
+
+Derived* objDer = objBase; // Error: Downcast needs explicit cast 
+```
+
+然而，static_cast **只验证指针类型是否相关，而不会执行任何运行阶段检查**。因此，程序员可使用static_cast 编写如下代码，而编译器不会报错：
+
+```c++
+Base* objBase = new Base(); 
+
+Derived* objDer = static_cast<Derived*>(objBase); // Still no errors! 
+```
+
+其中 objDer 实际上指向一个不完整的 Derived 对象，因为它指向的对象实际上是 Base()类型。由于 static_cast 只在编译阶段检查转换类型是否相关，而不执行运行阶段检查，因此 **objDer -> DerivedFunction()能够通过编译，但在运行阶段可能导致意外结果**。
+
+> static_cast 很像 C 语言中的旧式类型转换。
+>
+> 可以完成以下类型的转换
+>
+> - 基本类型的转换（char转int，int转float之类）
+> - void类型空指针转其他类型空指针
+> - 任意类型转void类型指针
+> - 父类到子类的转换（不保证正确）
+> - 子类到父类的转换（保证正确）
+>
+> 注意:static_cast不能转换掉expression的const、volatile(易变性)、或者__unaligned属性。即**能将 non-const对象转换为 const对象但是反之则不行，那是const_cast的职责**。
+
+#### 2）dynamic_cast
+
+dynamic_cast转换主要用于多态方面的转换，例如父类与子类之间的互相转换。在转换过程中如果能够成功转换就返回目标类型的指针，如果不行的话就返回空指针(用指针方式转换)或者抛出异常(用引用方式转换)。**在进行upcast时，static_cast和dynamic_cast具有相同的效果；但在downcast（向下转换，也就是父类向子类转换）时，dynamic_cast相对于static_cast有一个类型检查，相对来说更加安全**。另外需要注意的是：
+
+​		如果子类不是通过public继承父类的话，那么转换会失败。这是因为父类的public成员因为private继承变成了private属性（对于子类而言），父类的指针无法访问子类中的private成员，就会出现转换失败的问题。
+
+dynamic_cast 会动用运行时信息（RTTI）来进行类型安全检查，因此 dynamic_cast 存在一定的效率损失。（我曾见过属于优化代码80/20法则中的20那一部分的一段游戏代码，起初使用的是 dynamic_cast，后来被换成 static_cast 以提升效率，当然这仅是权宜之策，并非好的设计。）
+
+注意：务必检查 dynamic_cast 的返回值，看它是否有效。如果返回值为 NULL，说明转换失败。
+
+#### 3）reinterpret_cast 
+
+reinterpret_cast 是 C++中与 C 风格类型转换最接近的类型转换运算符。它让程序员能够将一种对象类型转换为另一种，不管它们是否相关；也就是说，它使用如下所示的语法强制重新解释类型：
+
+```c++
+Base* objBase = new Base (); 
+Unrelated* notRelated = reinterpret_cast<Unrelated*>(objBase); 
+// The code above compiles, but is not good programming!
+```
+
+这种类型转换实际上是强制编译器接受 static_cast 通常不允许的类型转换，通常用于低级程序（如驱动程序），在这种程序中，需要将数据转换为 API（应用程序编程接口）能够接受的简单类型（例如，有些 OS 级 API 要求提供的数据为 BYTE 数组，即 unsigned char*）：
+
+```c++
+SomeClass* object = new SomeClass(); 
+// Need to send the object as a byte-stream... 
+unsigned char* bytesFoAPI = reinterpret_cast<unsigned char*>(object);
+```
+
+上述代码使用的类型转换并没有改变源对象的二进制表示，但让编译器允许程序员访问 SomeClass对象包含的各个字节。由于其他 C++类型转换运算符都不允许执行这种有悖类型安全的转换，因此**除非万不得已，否则不要使用 reinterpret_cast 来执行不安全（不可移植）的转换**。
+
+**所以特别注意**：应尽量避免在应用程序中使用 reinterpret_cast，因为它让编译器将类型 X 视为不相关的类型 Y，这看起来不像是优秀的设计或实现。
+
+#### 4）const_cast
+
+const_cast 让程序员能够关闭对象的访问修饰符 const。您可能会问：为何要进行这种转换？在理想情况下，程序员将经常在正确的地方使用关键字 const。不幸的是，现实世界并非如此，像下面这样的代码随处可见：
+
+```c++
+class SomeClass 
+{ 
+public: 
+ // ... 
+ void DisplayMembers(); //problem - display function isn't const 
+};
+```
+
+在下面的函数中，以 const 引用的方式传递 object 显然是正确的。**毕竟，显示函数应该是只读的，不应调用非 const 成员函数，即不应调用能够修改对象状态的函数**。然而，DisplayMembers()本应为 const的，但却没有这样定义。如果 SomeClass 归您所有，且源代码受您控制，则可对 DisplayMembers()进行修改。然而，在很多情况下，它可能属于第三方库，无法对其进行修改。在这种情况下，const_cast将是您的救星。
+
+```c++
+void DisplayAllData (const SomeClass& object) 
+{ 
+ object.DisplayMembers (); // Compile failure 
+ // reason: call to a non-const member using a const reference 
+} 
+```
+
+在这种情况下，调用 DisplayMembers()的语法如下：
+
+```c++
+void DisplayAllData (const SomeClass& object) 
+{ 
+ SomeClass& refData = const_cast<SomeClass&>(object); 
+ refData.DisplayMembers(); // Allowed! 
+} 
+```
+
+**除非万不得已，否则不要使用 const_cast 来调用非 const 函数。一般而言，使用 const_cast 来修改const 对象可能导致不可预料的行为。**
+
+另外，const_cast 也可用于指针：
+
+```c++
+void DisplayAllData (const SomeClass* data) 
+{ 
+ // data->DisplayMembers(); Error: attempt to invoke a non-const function! 
+ SomeClass* pCastedData = const_cast<SomeClass*>(data); 
+ pCastedData->DisplayMembers(); // Allowed! 
+} 
+```
+
+> **补充：常对象**
+>
+> 常对象必须在定义对象时就指定对象为常对象。
+>
+> 常对象中的数据成员为常变量且必须要有初始值，如
+>
+> ```cpp
+> Time const t1(12,34,36); //定义t1为常对象
+> ```
+>
+> 这样的话，在所有的场合中，对象t1中的所有数据成员的值都不能被修改。**凡希望保证数据成员不被改变的对象，可以声明为常对象。**
+>
+> **如果一个对象被声明为常对象，则不能调用该对象的非const型的成员函数**（除了由系统自动调用的隐式构造函数和析构函数）。否则就会报错；
+>
+> > 这样做是为了防止非const型的成员函数修改**常对象中的数据成员的值**，因为const型的成员函数是不可以修改对象中的数据成员的值的（这个后面还会说到）。
+> >
+> > **上面这段话我就觉得不对劲，毕竟常对象的数据成员是const型，非const成员函数并不能修改它。查找了半天终于找到了原因！**如下：
+> >
+> > - 当对一个对象调用成员函数时，编译程序先将对象的地址赋给this指针，然后调用成员函数。每次成员函数存取数据成员时，都隐含使用this指针。
+> >
+> > - 当一个成员函数被调用时，自己主动向它传递一个隐含的參数。该參数是一个指向这个成员函数所在的对象的指针。 
+> > - 在C++中，this指针被隐含地声明为: X * const this,这意味着不能给this 指针赋值。在X类的const成员函数中，this指针的类型为：const X * const, 这说明this指针所指向的这样的对象也是不可改动的（**即不能对这样的对象的数据成员进行赋值操作**）; 
+> > - 由于this并非一个常规变量。所以不能取得this的地址。
+> >
+> > 可用下面的代码进行进一步说明：
+> >
+> > ```c++
+> > class A
+> > {
+> > public:
+> > 	A():mValue(0) {}
+> > 	void print() 
+> > 	{
+> > 		std::cout<<"hello";
+> > 	}
+> > 	int GetValue()
+> > 	{
+> > 		return mValue;
+> > 	}
+> > 	int GetValue()const
+> > 	{
+> > 		return mValue;
+> > 	}
+> > private:
+> > 	int mValue;
+> > };
+> > void test(A & const a) {}
+> > 
+> > int main()
+> > {
+> > 	const A a;//const A* const this ;	
+> > 	a.print(); //错误。将会提示 error C2662: “A::print”: 不能将“this”指针从“const A”转换为“A &”
+> >    // 我自己测试过确实是这样
+> > 
+> > 	test(a); //error C2664: “test”: 不能将參数 1 从“const A”转换为“A &”
+> > }
+> > ```
+> >
+> > 那么为什么会提示：“不能将this指针.......”的语句呢？
+> >
+> > 由于对于c++的成员函数（当然不是静态成员函数),都会含有一个隐藏的參数，对于上例A中的int GetValue()函数，在编译后会变成：
+> >
+> > ```c++
+> > int GetValue(A * const this);  //不能改动this变量，但能够改动this指向的内容。即：this是指针常量。
+> > 而对于int GetValue()const ，编译后是：
+> > 
+> > int GetValue(const A* const this); 
+> > ```
+> >
+> > 从编译后的结果看就非常清楚了。 由于a是const，所以其this指针就相应： const A* const this ;
+> >
+> > 而print函数被编译出来后相应的是void print(A* const this); 在进行參数匹配时， 所以就会提示 “不能将“this”指针从“const A ....."
+> >
+> > **所以：常对象仅仅能调用常成员函数；普通对象能够调用所有成员函数。**
+>
+> 有时在编程时有要求，一定要**修改常对象成员中的某个数据成员的值**（例如类中有一个用于计数的变量count，其值应当不能变化），**对该数据成员声明为mutable**，如
+>
+> ```cpp
+> mutable int count;//定义一个在常对象中可以被改变的数据成员
+> ```
+>
+> 把count声明为可变的数据成员，这样就可以用声明为const的成员函数来修改它的值。
+>
+> **常对象成员**
+>
+> 1）常数据成员
+>
+> 在类体中声明了某一个数据成员为常数据成员后，该类所有对象中的该数据成员的值都是不能改变的，但不同对象中该变量成员的值可以是不同的（分别在初始化时指定）。所以常数据成员只能通过初始化列表，获得初值，不能写在构造函数体内，因为写了每个对象就都不可改变其值了。
+>
+> 在类外定义构造函数
+>
+> ```cpp
+> Student::Student(int n,float s):num(n),score(s){} //通过参数初始化表对常数据成员num和score初始化
+> ```
+>
+> 2）常成员函数
+>
+> const是函数类型的一部分，在声明函数和定义函数都要有const关键字，在调用时不必加const；
+>
+> 常成员函数可以引用const数据成员，也可以引用非const数据成员，但是都不能修改他们；
+>
+> 非常成员函数的函数可以调用const数据成员，但是不能修改它们，也可以调用非const数据成员，并且可以修改它们。
+>
+> 还要注意一下三点：
+>
+> 1.常对象不可调用非const成员函数，所以非const成员函数不可引用常对象的的数据成员；
+>
+> 2.不要误认为常对象中的成员函数都是常成员函数，常对象只保证其所有数据成员的值不被修改；
+>
+> 3.如果在常对象中的成员函数未加const声明，则编译系统会把它当最非const成员函数处理。
+
