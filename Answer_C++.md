@@ -117,7 +117,8 @@ void main()
     // 调用拷贝构造函数( 有下面两种调用方式) 
     Complex c5(c2);
     Complex c4 = c2;  // 注意和 = 运算符重载区分,这里等号左边的对象不是事先已经创建，故需要调用拷贝构造函数，参数为c2       
-        
+    
+    所以=与拷贝最重要的区别就是看：若被copy的对象如果已经存在那就是赋值，就是赋值的时候两个对象都存在，而拷贝的时候是用一个已存在的去复制产生一个新的（未存在的）
 }
 ```
 
@@ -252,7 +253,7 @@ int main()
 (2) 然后调用拷贝构造函数把E1的值给C（这里调用的是默认的拷贝构造函数）。 整个这两个步骤有点像这条语句：Example C(test);
 (3) 等E2.add(E1)执行完后, 析构掉 C 对象。
 
-2、将对象或对象的引用作为参数返回
+2、将对象作为参数返回
 
 基本语法：
 
@@ -1238,3 +1239,58 @@ int main()
 
 经过测试确实如此！
 
+## 十四.函数签名
+
+C++中的函数签名(function signature)：包含了一个函数的信息，包括函数名、参数类型、参数个数、顺序以及它所在的类和命名空间。
+
+普通函数签名并不包含函数返回值部分，如果两个函数仅仅只有函数返回值不同，那么系统是无法区分这两个函数的，此时编译器会提示语法错误。
+
+**函数签名用于识别不同的函数**，函数的名字只是函数签名的一部分。在编译器及链接器处理符号时，使用某种名称修饰的方法，使得每个函数签名对应一个修饰后名称(decorated name)。编译器在将C++源代码编译成目标文件时，会将函数和变量的名字进行修饰，形成符号名，也就是说，C++的源代码编译后的目标文件中所使用的符号名是相应的函数和变量的修饰后名称。**C++编译器和链接器都使用符号来识别和处理函数和变量，所以对于不同函数签名的函数，即使函数名相同，编译器和链接器都认为它们是不同的函数**。
+
+ 不同的编译器厂商的名称修饰方法可能不同，所以不同的编译器对于同一个函数签名可能对应不同的修饰后名称。
+
+ **For functions that are specializations of function templates, the signature includes the return type**. For functions that are not specializations, the return type is not part of the signature.
+
+对于函数模板专门化的函数，签名包括返回类型。对于非专门化的函数，返回类型不是签名的一部分。
+
+ A function signature consists of the function prototype. What it tells you is the general information about a function, its name, parameters, what scope it is in, and other miscellaneous information.
+
+函数签名由函数原型组成。它告诉你的是关于一个函数的一般信息，它的名字，参数，它的作用域，以及其他杂项信息。
+
+ Two overloaded functions must not have the same signature.
+
+两个重载函数不能有相同的签名。
+
+ Default Arguments: The last parameter or parameters in a function signature may be assigned a default argument, which means that the caller may leave out the argument when calling the function unless they want to specify some other value.
+
+默认参数:函数签名中的最后一个或多个参数可能会被赋予一个默认参数，这意味着调用者在调用函数时可以忽略这个参数，除非他们想指定一些其他的值。
+
+## 十五.size_t和size_type
+
+为了使自己的程序有很好的移植性，Ｃ++程序员应该尽量使用size_t和size_type，而不是int，unsigned。
+
+在标准C/C++的语法中，只有int float char bool等基本的数据类型，至于size_t,或size_type都是以后的编程人员为了方便记忆所定义的一些便于理解的由基本数据类型的变体类型。
+
+size_t是为了方便系统之间的移植而定义的，它是一个无符号整型，在32位系统上定义为：unsigned int；在64位系统上定义为unsigned long。size_t一般用来计数，sizeof操作符的结果类型是size_t，该类型保证能容纳实现所建立的最大对象的字节大小。它的意义大致是“适用于内存中可容纳的数据项目的个数的无符号整数类型”所以，它在数组下标和内存管理函数之类的地方广泛使用。例如：typedef unsigned int size_t;定义了size_t为整型。因为size_t类型的数据其实是保存了一个整数，所以它也可以做加减乘除，也可以转化为int并赋值给int类型的变量。类似的还有wchar_t, ptrdiff_t等。
+
+size_type是由string类类型和vector类类型定义的类型，用于保存任意string对象或vector对象的长度，标准库类型将size_type定义为unsigned类型。string::size_type它在不同的机器上，长度可以是不同的，并非固定的长度，但只要你使用了这个类型，就是的你的程序适这个机器，与实际机器匹配。
+
+size_t和size_type的主要区别：
+
+1. size_t是全局定义的类型；size_type是STL类中定义的类型属性。在使用STL中表明容器长度的时候，我们一般用size_type。
+
+2. string::size_type 类型一般就是unsigned int, 但是不同机器环境长度可能不同 win32 和win64上长度差别; size_t一般也是unsigned int
+
+3. size_t 使用的时候头文件需要 <cstddef> （貌似vs2019中不需要包含）；size_type 使用的时候需要<string>或者<vector>
+
+4. 下述长度均相等，长度为 **win32:4    win64:8**
+
+   sizeof(string::size_type)
+
+   sizeof(vector<bool>::size_type)
+
+   sizeof(vector<char>::size_type)
+
+   sizeof(size_t)
+
+5. 二者联系：在用下标访问元素时，vector使用vector::size_type作为下标类型（size_type是容器概念，没有容器不能使用），而数组下标的正确类型则是size_t

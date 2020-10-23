@@ -2770,7 +2770,7 @@ Derived objDerived;
 
 Base* objBase = &objDerived; // Upcast -> ok! 
 
-Derived* objDer = objBase; // Error: Downcast needs explicit cast 
+Derived* objDer = &objBase; // Error: Downcast needs explicit cast 
 ```
 
 然而，static_cast **只验证指针类型是否相关，而不会执行任何运行阶段检查**。因此，程序员可使用static_cast 编写如下代码，而编译器不会报错：
@@ -2791,7 +2791,7 @@ Derived* objDer = static_cast<Derived*>(objBase); // Still no errors!
 > - void类型空指针转其他类型空指针
 > - 任意类型转void类型指针
 > - 父类到子类的转换（不保证正确）
-> - 子类到父类的转换（保证正确）
+> - **子类到父类的转换（保证正确）**
 >
 > 注意:static_cast不能转换掉expression的const、volatile(易变性)、或者__unaligned属性。即**能将 non-const对象转换为 const对象但是反之则不行，那是const_cast的职责**。
 
@@ -2982,7 +2982,7 @@ void DisplayAllData (const SomeClass* data)
 >
 > 2.不要误认为常对象中的成员函数都是常成员函数，常对象只保证其所有数据成员的值不被修改；
 >
-> 3.如果在常对象中的成员函数未加const声明，则编译系统会把它当最非const成员函数处理。
+> 3.如果在常对象中的成员函数未加const声明，则编译系统会把它当成非const成员函数处理。
 
 ### 习题
 
