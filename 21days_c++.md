@@ -2962,6 +2962,10 @@ void DisplayAllData (const SomeClass* data)
 >
 > 在类体中声明了某一个数据成员为常数据成员后，该类所有对象中的该数据成员的值都是不能改变的，但不同对象中该变量成员的值可以是不同的（分别在初始化时指定）。所以常数据成员只能通过初始化列表，获得初值，不能写在构造函数体内，因为写了每个对象就都不可改变其值了。
 >
+> **常数据成员只能通过初始化列表初始化而不能赋值**，原因不是我上面想的那样，通过查找发现：
+>
+> *理论上定义class的时候不能够对其中的成员变量赋值，因为定义一个class并不会为这个class分配空间，是只有在instance class时候才会分配空间，既然没有空间，当然不能赋值（sizeof计算的时候只是表达这个类需要多少内存并不表示分配了内存，就好比sizeof(int)=4，只表示int这个类型占四个字节，不表示分配了四个字节）。所以对于const变量的初始化只能使用初始化列表。*
+>
 > 在类外定义构造函数
 >
 > ```cpp
@@ -2972,9 +2976,9 @@ void DisplayAllData (const SomeClass* data)
 >
 > const是函数类型的一部分，在声明函数和定义函数都要有const关键字，在调用时不必加const；
 >
-> 常成员函数可以引用const数据成员，也可以引用非const数据成员，但是都不能修改他们；
+> **常成员函数可以引用const数据成员，也可以引用非const数据成员，但是都不能修改他们**；
 >
-> 非常成员函数的函数可以调用const数据成员，但是不能修改它们，也可以调用非const数据成员，并且可以修改它们。
+> **非常成员函数的函数可以调用const数据成员，但是不能修改它们**，也可以调用非const数据成员，并且可以修改它们。
 >
 > 还要注意一下三点：
 >
@@ -3001,4 +3005,326 @@ void DisplayAllData (const SomeClass* data)
 #### 4.假设您有一个指向对象的 const 引用，并试图通过它调用一个您编写的公有成员函数，但编译器不允许您这样做，因为该函数不是 const 成员。您将修改这个函数还是使用 const_cast？
 
 答：当然是修改函数。一般而言，除非万不得已，否则不要使用 const_cast 和类型转换运算符。
+
+## 第十四章.模板
+
+### 知识点
+
+#### 1）模板声明
+
+typename（或class)是声明数据类型参数标识符的关键字，**用以说明它后面的标识符是数据类型标识符**。函数模板允许使用多个类型参数，但在template定义部分的每个形参前必须有关键字typename或class。
+
+```c++
+template <typename T1, typename T2 = T1> 
+bool TemplateFunction(const T1& param1, const T2& param2); 
+// A template class 
+template <typename T1, typename T2 = T1>
+class MyTemplate 
+{ 
+private: 
+ T1 member1; 
+ T2 member2; 
+public: 
+ T1 GetObj1() {return member1; } 
+ // ... other members 
+};
+```
+
+函数模板的一般定义形式是：
+
+```c++
+template <类型形式参数>      //类型形式参数即此格式：<typename  形式参数>  或 <class 形式参数>
+返回类型  函数名 （形式参数）
+{
+	//函数定义体;
+}
+```
+
+类模板的一般说明形式是:
+
+```c++
+    template <类型形式参数>
+    class 类名
+    {
+    	//类声明体;
+    };
+    
+    template <类型形式参数>
+    返回类型 类名 <类型> :: 成员函数名1(形式参数)
+    {
+    	//成员函数定义体;
+    }
+
+    ... ...
+    template <类型形式参数>
+    返回类型 类名 <类型> :: 函数名N(形式参数)
+    {
+		//成员函数定义体;
+    }
+```
+
+函数模板与模板函数的区别：
+
+函数模板是模板的定义，定义中的形式参数实际上是通用类型参数。
+模板函数是实实在在的函数定义，它由编译系统在碰见具体的函数调用时所生成，具有程序代码。
+
+#### 2）各种类型的模板声明
+
+1.模板函数
+
+```c++
+int num1 = 25; 
+int num2 = 40; 
+int maxVal = GetMax <int> (num1, num2);
+```
+
+注意到调用 GetMax 时使用了<int>，这将模板参数 objType 指定为 int。
+
+实际上调用模板函数时并非一定要指定类型，因此下面的函数调用没有任何问题：
+
+```c++
+int maxVal = GetMax(num1, num2); 
+```
+
+在这种情况下，编译器很聪明，知道这是针对整型调用模板函数，自动推断
+
+出类型。然而，**对于模板类，必须显式地指定类型。**
+
+注意：模板函数 DisplayComparison( )和 GetMax( )是类型安全的，这意味着不能像下面这样进行无意义的调用：
+
+```c++
+DisplayComparison(num1, name1); 
+
+// 这种调用将导致编译错误。
+```
+
+2.模板类
+
+模板类是模板化的 C++类，是蓝图的蓝图。使用模板类时，可指定要为哪种类型具体化类。这让您能够创建不同的 Human 对象，即有的年龄存储在 long long 成员中，有的存储在 int 成员中，还有的存储在 short 成员中。
+
+```c++
+template <typename T> 
+class HoldVarTypeT 
+{ 
+private: 
+ T value; 
+public: 
+ void SetValue (const T& newValue) { value = newValue; } 
+ T& GetValue() {return value;} 
+};
+```
+
+来看该模板类的一种用法：
+
+```c++
+HoldVarTypeT <int> holdInt; // template instantiation for int 
+holdInt.SetValue(5); 
+cout << "The value stored is: " << holdInt.GetValue() << endl; 
+
+同样，这个类也可以用于处理字符串，其用法类似：
+HoldVarTypeT <char*> holdStr; 
+holdStr.SetValue("Sample string"); 
+cout << "The value stored is: " << holdStr.GetValue() << endl; 
+因此，这个模板类定义了一种模式，并可针对不同的数据类型实现这种模式。
+```
+
+3.声明包含多个参数的模板
+
+```c++
+template <typename T1, typename T2> 
+class HoldsPair 
+{ 
+private: 
+ T1 value1; 
+ T2 value2; 
+public: 
+ // Constructor that initializes member variables 
+ HoldsPair (const T1& val1, const T2& val2) 
+ { 
+ value1 = val1; 
+ value2 = val2; 
+ }; 
+ // ... Other member functions 
+};
+```
+
+```c++
+// A template instantiation that pairs an int with a double 
+HoldsPair <int, double> pairIntDouble (6, 1.99); 
+// A template instantiation that pairs an int with an int
+HoldsPair <int, int> pairIntDouble (6, 500);
+```
+
+4.声明包含默认参数的模板
+
+可以修改前面的 HoldsPair <…>，将模板参数的默认类型指定为 int：
+
+```c++
+template <typename T1**=int**, typename T2**=int**> 
+class HoldsPair 
+{ 
+ // ... method declarations 
+}; 
+```
+
+这与给函数指定默认参数值极其类似，只是这里指定的是默认类型。
+
+这样，前述第二种 HoldsPair 用法可以简写为：
+
+```c++
+// Pair an int with an int (default type) 
+
+HoldsPair <> pairInts (6, 500); 
+```
+
+5.模板类和静态成员
+
+在编译器看来，仅当模板被使用时，其代码才存在。
+
+如果将类成员声明为静态的，该成员将由类的所有实例共享。模板类的静态成员与此类似，由特定具体化的所有实例共享。也就是说，如果模板类包含静态成员，该成员将在针对 int 具体化的所有实例之间共享；同样，它还将在针对 double 具体化的所有实例之间共享，且与针对 int 具体化的实例无关。换句话说，可以认为编译器创建了两个版本的 x：x_int 用于针对 int 具体化的实例，而 x_double 针对 double 具体化的实例。
+
+```c++
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: template <typename T> 
+ 4: class TestStatic 
+ 5: { 
+ 6: public: 
+ 7: static int staticVal; 
+ 8: }; 
+ 9: 
+10: // static member initialization 
+11: template<typename T> int TestStatic<T>::staticVal; 
+12: 
+13: int main() 
+14: { 
+15: TestStatic<int> intInstance; 
+16: cout << "Setting staticVal for intInstance to 2011" << endl; 
+17: intInstance.staticVal = 2011; 
+18: 
+19: TestStatic<double> dblnstance; 
+20: cout << "Setting staticVal for Double_2 to 1011" << endl; 
+21: dblnstance.staticVal = 1011; 
+22: 
+23: cout << "intInstance.staticVal = " << intInstance.staticVal << endl; 
+24: cout << "dblnstance.staticVal = " << dblnstance.staticVal << endl; 
+25: 
+26: return 0; 
+27: }
+// 输出
+Setting staticVal for intInstance to 2011 
+Setting staticVal for Double_2 to 1011 
+intInstance.staticVal = 2011 
+dblnstance.staticVal = 1011
+```
+
+输出表明，编译器在两个不同的静态成员中存储了两个不同的值，但这两个静态成员都名为 staticVal。也就是说，对于**针对每种类型具体化的类，编译器确保其静态变量不受其他类的影响。**
+
+注意：第 11 行不可或缺，它初始化模板类的静态成员：
+
+```c++
+template<typename T> int TestStatic<T>::staticVal; 
+
+对于模板类的静态成员，通用的初始化语法如下：
+
+template<template parameters> StaticType 
+
+ClassName<Template Arguments>::StaticVarName; 
+```
+
+6.参数数量可变的模板
+
+假定您要编写一个将两个值相加的通用函数，为此可编写下面这样的模板函数 Sum()：
+
+```c++
+template <typename T1, typename T2, typename T3> 
+void Sum(T1& result, T2 num1, T3 num2) 
+{ 
+ result = num1 + num2; 
+ return; 
+} 
+```
+
+这很简单。然而，如果需要编写一个函数，能够计算任意数量值的和，就需要使用参数数量可变的模板。参数数量可变的模板是 2014 年发布的 C++14 新增的。
+
+```cpp
+ 0: #include <iostream> 
+ 1: using namespace std; 
+ 2: 
+ 3: template <typename Res, typename ValType> 
+ 4: void Sum(Res& result, ValType& val) 
+ 5: { 
+ 6: result = result + val; 
+ 7: } 
+ 8: 
+ 9: template <typename Res, typename First, typename... Rest> 
+10: void Sum(Res& result, First val1, Rest... valN) 
+11: { 
+12: result = result + val1; 
+13: return Sum(result, valN ...);
+14: } 
+15: 
+16: int main() 
+17: { 
+18: double dResult = 0; 
+19: Sum (dResult, 3.14, 4.56, 1.1111); 
+20: cout << "dResult = " << dResult << endl; 
+21: 
+22: string strResult; 
+23: Sum (strResult, "Hello ", "World"); 
+24: cout << "strResult = " << strResult.c_str() << endl; 
+25: 
+26: return 0; 
+27: }
+
+```
+
+您可能注意到了，在前面的代码示例中，使用了省略号…。在 C++中，模板中的省略号告诉编译器，默认类或模板函数可接受任意数量的模板参数，且这些参数可为任何类型。
+
+注意：编写模板函数和模板类时，别忘了尽可能使用const。
+
+### 习题
+
+#### 1）在头文件中，为何要防范多次包含？
+
+答：多次包含防范使用#ifndef、#define 和#endif，可避免头文件出现多次包含或递归包含错误，有时还可提高编译速度。
+
+#### 2）如果所需的功能使用宏函数和模板都能实现，在什么情况下应使用宏函数，而不是模板？
+
+答：在任何情况下都应使用模板，而不是宏函数，因为模板不但提供了通用实现，还是类型安全的。宏函数不是类型安全的，最好不要使用。
+
+#### 3）编写模板函数 Display()，它可使用不同数量和类型的参数调用，并将所有的参数都显示出来
+
+```c++
+#include <iostream> 
+using namespace std; 
+void Display() 
+{ 
+} 
+template <typename First, typename ...Last> void Display(First a, Last... U) 
+{ 
+ cout << a << endl; 
+ Display(U...); 
+} 
+int main() 
+{ 
+ Display('a'); 
+ Display(3.14); 
+ Display('a', 3.14); 
+ Display('z', 3.14567, "The power of variadic templates!"); 
+ return 0; 
+}
+```
+
+```c++
+// 输出如下
+a 
+3.14 
+a 
+3.14 
+z 
+3.14567 
+The power of variadic templates!
+```
 
